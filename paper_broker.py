@@ -6,7 +6,12 @@ from trade_logger import (
 )
 from risk_manager import calculate_position_size
 from data_engine import get_stock_data, get_latest_price
-from telegram_notifier import notify_buy_signal, notify_exit_signal, notify_trailing_sl
+try:
+    from telegram_notifier import notify_buy_signal, notify_exit_signal, notify_trailing_sl
+except ImportError:
+    def notify_buy_signal(setup, qty, trade_id): pass
+    def notify_exit_signal(trade, exit_price, reason): pass
+    def notify_trailing_sl(symbol, new_sl, ltp): pass
 
 def execute_paper_buy(setup: Dict) -> bool:
     """
