@@ -2,7 +2,10 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from typing import Optional, Dict
+import datetime
 import config
+
+NIFTY_HEALTH_CACHE = {}
 
 def get_stock_data(symbol: str, period: str = "1y", interval: str = "1d") -> Optional[pd.DataFrame]:
     """
@@ -10,7 +13,6 @@ def get_stock_data(symbol: str, period: str = "1y", interval: str = "1d") -> Opt
     Ensures standard formatting and handles potential network or missing data issues.
     """
     try:
-        # Standardize NSE symbol format
         formatted_symbol = symbol if symbol.endswith(".NS") else f"{symbol}.NS"
         ticker = yf.Ticker(formatted_symbol)
         df = ticker.history(period=period, interval=interval)
@@ -18,7 +20,6 @@ def get_stock_data(symbol: str, period: str = "1y", interval: str = "1d") -> Opt
         if df.empty or len(df) < 50:
             return None
         
-        # Clean index and column names
         df = df.reset_index()
         if "Date" in df.columns:
             df["Date"] = pd.to_datetime(df["Date"]).dt.tz_localize(None)
@@ -30,27 +31,74 @@ def get_stock_data(symbol: str, period: str = "1y", interval: str = "1d") -> Opt
         print(f"Error fetching data for {symbol}: {e}")
         return None
 
+def compute_supertrend(df: pd.DataFrame, period: int = 10, multiplier: float = 3.0) -> pd.DataFrame:
+    """Computes Supertrend (10, 3) indicator."""
+    hl2 = (df["High"] + df["Low"]) / 2.0
+    upperband = hl2 + (multiplier * df["ATR"])
+    lowerband = hl2 - (multiplier * df["ATR"])
+    
+    supertrend = [True] * len(df)
+    st_val = [0.0] * len(df)
+    
+    for i in range(period, len(df)):
+        curr_close = float(df["Close"].iloc[i])
+        prev_st_val = st_val[i-1]
+        prev_supertrend = supertrend[i-1]
+        
+        if upperband.iloc[i] < upperband.iloc[i-1] or df["Close"].iloc[i-1] > upperband.iloc[i-1]:
+            curr_upper = upperband.iloc[i]
+        else:
+            curr_upper = upperband.iloc[i-1]
+            
+        if lowerband.iloc[i] > lowerband.iloc[i-1] or df["Close"].iloc[i-1] < lowerband.iloc[i-1]:
+            curr_lower = lowerband.iloc[i]
+        else:
+            curr_lower = lowerband.iloc[i-1]
+            
+        if prev_supertrend:
+            if curr_close < curr_lower:
+                supertrend[i] = False
+                st_val[i] = curr_upper
+            else:
+                supertrend[i] = True
+                st_val[i] = curr_lower
+        else:
+            if curr_close > curr_upper:
+                supertrend[i] = True
+                st_val[i] = curr_lower
+            else:
+                supertrend[i] = False
+                st_val[i] = curr_upper
+                
+    df["Supertrend_Bullish"] = supertrend
+    df["Supertrend_Val"] = st_val
+    return df
+
 def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Computes technical indicators required for the Zone Bounce Swing Strategy:
-    - 20 EMA, 50 EMA, 200 EMA
+    Computes institutional indicators:
+    - 9, 20, 21, 50, 200 EMA
     - 14-period RSI
-    - 14-period ATR (Average True Range)
+    - 14-period ATR
+    - MACD (12, 26, 9) and MACD Histogram
+    - Supertrend (10, 3)
     - 20-period Volume Moving Average
     """
-    # Exponential Moving Averages
+    # Moving Averages
+    df["EMA_9"] = df["Close"].ewm(span=9, adjust=False).mean()
     df["EMA_20"] = df["Close"].ewm(span=config.PULLBACK_EMA, adjust=False).mean()
+    df["EMA_21"] = df["Close"].ewm(span=21, adjust=False).mean()
     df["EMA_50"] = df["Close"].ewm(span=config.TREND_EMA_MID, adjust=False).mean()
     df["EMA_200"] = df["Close"].ewm(span=config.TREND_EMA_LONG, adjust=False).mean()
     
-    # RSI (Relative Strength Index)
+    # RSI (14)
     delta = df["Close"].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=config.RSI_PERIOD).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=config.RSI_PERIOD).mean()
     rs = gain / (loss + 1e-9)
     df["RSI"] = 100 - (100 / (1 + rs))
     
-    # ATR (Average True Range)
+    # ATR (14)
     high_low = df["High"] - df["Low"]
     high_close = (df["High"] - df["Close"].shift()).abs()
     low_close = (df["Low"] - df["Close"].shift()).abs()
@@ -60,7 +108,42 @@ def calculate_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # Volume average
     df["Volume_SMA20"] = df["Volume"].rolling(window=20).mean()
     
+    # MACD (12, 26, 9)
+    ema_12 = df["Close"].ewm(span=12, adjust=False).mean()
+    ema_26 = df["Close"].ewm(span=26, adjust=False).mean()
+    df["MACD"] = ema_12 - ema_26
+    df["MACD_Signal"] = df["MACD"].ewm(span=9, adjust=False).mean()
+    df["MACD_Hist"] = df["MACD"] - df["MACD_Signal"]
+    
+    # Supertrend (10, 3)
+    df = compute_supertrend(df, period=10, multiplier=3.0)
+    
     return df
+
+def check_nifty_market_health() -> bool:
+    """
+    Evaluates Nifty-50 Macro Health.
+    Halts new buying if Nifty-50 is down > 1.25% today to protect capital from market crashes.
+    """
+    now = datetime.datetime.now()
+    if "is_healthy" in NIFTY_HEALTH_CACHE and (now - NIFTY_HEALTH_CACHE["time"]).total_seconds() < 120:
+        return NIFTY_HEALTH_CACHE["is_healthy"]
+        
+    try:
+        nifty = yf.Ticker("^NSEI")
+        hist = nifty.history(period="5d", interval="1d")
+        if len(hist) >= 2:
+            cur = float(hist["Close"].iloc[-1])
+            prev = float(hist["Close"].iloc[-2])
+            pct_change = ((cur - prev) / prev) * 100.0
+            is_healthy = pct_change > -1.25
+            NIFTY_HEALTH_CACHE["is_healthy"] = is_healthy
+            NIFTY_HEALTH_CACHE["time"] = now
+            return is_healthy
+        return True
+    except Exception as e:
+        print(f"[Nifty Health Warning] {e}")
+        return True
 
 def get_latest_price(symbol: str) -> Optional[float]:
     """Fetches the latest real-time/closing price for a stock."""

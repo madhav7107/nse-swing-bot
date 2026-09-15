@@ -101,6 +101,12 @@ def perform_full_scan():
         ema50 = round(float(last["EMA_50"]), 2)
         ema200 = round(float(last["EMA_200"]), 2)
         
+        ema9 = round(float(last["EMA_9"]), 2) if "EMA_9" in last else close
+        ema21 = round(float(last["EMA_21"]), 2) if "EMA_21" in last else ema20
+        macd = round(float(last["MACD"]), 2) if "MACD" in last else 0.0
+        macd_signal = round(float(last["MACD_Signal"]), 2) if "MACD_Signal" in last else 0.0
+        supertrend_bullish = bool(last["Supertrend_Bullish"]) if "Supertrend_Bullish" in last else True
+        
         setup = analyze_zone_bounce_signal(df, symbol)
         
         is_uptrend = close > ema200
@@ -109,29 +115,37 @@ def perform_full_scan():
         if setup:
             signals.append(setup)
             success = execute_paper_buy(setup)
-            status_text = f"BUY TRIGGERED! ({setup['pattern']})"
+            status_text = f"INSTITUTIONAL BUY ({setup['confluence_score']}%)"
             color = "emerald"
             if success:
                 executed.append(symbol)
-                add_log(f"🚀 BUY ORDER PLACED: {symbol.replace('.NS','')} at Rs. {setup['entry_price']} | SL: Rs. {setup['stop_loss']} | Tgt: Rs. {setup['target_price']}")
+                add_log(f"🚀 BUY ORDER: {symbol.replace('.NS','')} [Score: {setup['confluence_score']}%] at Rs. {setup['entry_price']} | SL: Rs. {setup['stop_loss']} | Tgt: Rs. {setup['target_price']}")
         elif is_uptrend and near_zone:
-            status_text = "In Support Zone (Watching Reversal)"
+            status_text = "Demand Zone (Watching Reversal)"
             color = "amber"
-            add_log(f"👀 {symbol.replace('.NS','')}: In Demand Zone (LTP: Rs. {close}, RSI: {rsi}). Watching for bounce candle.")
+            add_log(f"👀 {symbol.replace('.NS','')}: In Demand Zone (LTP: Rs. {close}, RSI: {rsi}).")
+        elif is_uptrend and (ema9 > ema21) and supertrend_bullish:
+            status_text = "Strong Uptrend (9/21 EMA + Supertrend)"
+            color = "blue"
         elif is_uptrend:
-            status_text = "Uptrend (Waiting for Pullback)"
+            status_text = "Uptrend (Pullback Phase)"
             color = "blue"
         else:
-            status_text = "Below 200 EMA (Downtrend / Skipped)"
+            status_text = "Below 200 EMA (Avoid)"
             color = "slate"
             
         radar_list.append({
             "symbol": symbol.replace(".NS", ""),
             "ltp": close,
+            "ema9": ema9,
+            "ema21": ema21,
             "ema20": ema20,
             "ema50": ema50,
             "ema200": ema200,
             "rsi": rsi,
+            "ema_cross": "BULLISH" if ema9 > ema21 else "BEARISH",
+            "macd_bullish": macd > macd_signal,
+            "supertrend": "BULLISH" if supertrend_bullish else "BEARISH",
             "trend": "UPTREND" if is_uptrend else "DOWNTREND",
             "status": status_text,
             "color": color
@@ -449,13 +463,13 @@ def index():
                         <thead class="text-slate-400 uppercase bg-slate-950/60 border-b border-slate-800 sticky top-0">
                             <tr>
                                 <th class="py-3 px-4">Stock</th>
-                                <th class="py-3 px-4">Current LTP</th>
-                                <th class="py-3 px-4">20 EMA</th>
-                                <th class="py-3 px-4">50 EMA</th>
+                                <th class="py-3 px-4">LTP</th>
+                                <th class="py-3 px-4">9/21 Cross</th>
                                 <th class="py-3 px-4">200 EMA</th>
-                                <th class="py-3 px-4">RSI</th>
-                                <th class="py-3 px-4">Trend</th>
-                                <th class="py-3 px-4">Bot Analysis / Status</th>
+                                <th class="py-3 px-4">RSI 14</th>
+                                <th class="py-3 px-4">Supertrend</th>
+                                <th class="py-3 px-4">MACD</th>
+                                <th class="py-3 px-4">AI Confluence & Setup</th>
                             </tr>
                         </thead>
                         <tbody id="radarTableBody" class="divide-y divide-slate-800/60">
@@ -599,15 +613,20 @@ def index():
 
                             const trendColor = s.trend === "UPTREND" ? "text-emerald-400" : "text-rose-400";
 
+                            const emaCrossClass = s.ema_cross === "BULLISH" ? "text-emerald-400 font-bold" : "text-slate-500";
+                            const stClass = s.supertrend === "BULLISH" ? "text-emerald-400 font-bold" : "text-rose-400";
+                            const macdClass = s.macd_bullish ? "text-emerald-400 font-bold" : "text-slate-500";
+                            const rsiClass = (s.rsi >= 50 && s.rsi <= 65) ? "text-emerald-400 font-bold" : ((s.rsi >= 40 && s.rsi < 50) ? "text-amber-400" : "text-slate-300");
+
                             return `
                                 <tr class="hover:bg-slate-800/40 transition">
                                     <td class="py-3 px-4 font-bold text-white">${s.symbol}</td>
                                     <td class="py-3 px-4 font-semibold text-white">₹${s.ltp}</td>
-                                    <td class="py-3 px-4 text-slate-400">₹${s.ema20 || '-'}</td>
-                                    <td class="py-3 px-4 text-slate-400">₹${s.ema50 || '-'}</td>
+                                    <td class="py-3 px-4 ${emaCrossClass}">${s.ema_cross || '-'}</td>
                                     <td class="py-3 px-4 text-slate-400">₹${s.ema200 || '-'}</td>
-                                    <td class="py-3 px-4 ${s.rsi >= 40 && s.rsi <= 60 ? 'text-amber-400 font-bold' : 'text-slate-300'}">${s.rsi || '-'}</td>
-                                    <td class="py-3 px-4 ${trendColor} font-semibold">${s.trend}</td>
+                                    <td class="py-3 px-4 ${rsiClass}">${s.rsi || '-'}</td>
+                                    <td class="py-3 px-4 ${stClass}">${s.supertrend || '-'}</td>
+                                    <td class="py-3 px-4 ${macdClass}">${s.macd_bullish ? 'BULLISH' : 'NEUTRAL'}</td>
                                     <td class="py-3 px-4">
                                         <span class="px-2.5 py-1 rounded-md text-[11px] border ${badgeClass}">
                                             ${s.status}
