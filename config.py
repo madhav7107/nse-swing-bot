@@ -47,9 +47,20 @@ NSE_HOLIDAYS_2026 = {
     "2026-12-25": "Christmas"
 }
 
-def get_market_status():
+# Institutional Confluence Threshold (e.g. 60% for active testing, 75% for strict conservative)
+CONFLUENCE_THRESHOLD = 60
+
+def get_ist_now():
     import datetime
-    now = datetime.datetime.now()
+    try:
+        import zoneinfo
+        return datetime.datetime.now(zoneinfo.ZoneInfo("Asia/Kolkata"))
+    except Exception:
+        import datetime
+        return datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
+
+def get_market_status():
+    now = get_ist_now()
     today_str = now.strftime("%Y-%m-%d")
     
     # 1. Weekend check
@@ -65,11 +76,11 @@ def get_market_status():
     market_end = now.replace(hour=15, minute=30, second=0, microsecond=0)
     
     if now < market_start:
-        return False, "CLOSED (Pre-Market - Opens at 09:15 AM)"
+        return False, "CLOSED (Pre-Market - Opens at 09:15 AM IST)"
     elif now > market_end:
-        return False, "CLOSED (Market Closed at 03:30 PM)"
+        return False, "CLOSED (Market Closed at 03:30 PM IST)"
     else:
-        return True, "OPEN (Trading Active: 09:15 AM - 03:30 PM)"
+        return True, "OPEN (Trading Active: 09:15 AM - 03:30 PM IST)"
 
 # Watchlist: High Liquidity Nifty Large/Midcap Stocks
 WATCHLIST = [

@@ -196,9 +196,10 @@ def analyze_zone_bounce_signal(df: pd.DataFrame, symbol: str) -> Optional[Dict]:
     score_breakdown["Risk/Reward"] = f"{rr_score}/10 (1:{rr_ratio})"
     
     # ----------------------------------------------------
-    # FINAL PASSING CRITERIA: Confluence Score >= 75%
+    # FINAL PASSING CRITERIA: Confluence Score >= CONFLUENCE_THRESHOLD (60%)
     # ----------------------------------------------------
-    if score < 75 or rr_ratio < 1.8:
+    min_threshold = getattr(config, "CONFLUENCE_THRESHOLD", 60)
+    if score < min_threshold or rr_ratio < 1.5:
         return None
         
     return {

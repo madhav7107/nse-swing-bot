@@ -137,6 +137,7 @@ def perform_full_scan():
         radar_list.append({
             "symbol": symbol.replace(".NS", ""),
             "ltp": close,
+            "score": setup['confluence_score'] if setup else (60 if (is_uptrend and near_zone) else (50 if is_uptrend else 20)),
             "ema9": ema9,
             "ema21": ema21,
             "ema20": ema20,
@@ -152,7 +153,7 @@ def perform_full_scan():
         })
         
     RADAR_DATA = radar_list
-    LAST_AUTO_SCAN = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    LAST_AUTO_SCAN = config.get_ist_now().strftime("%Y-%m-%d %H:%M:%S IST")
     add_log(f"Scan complete: Scanned {len(config.WATCHLIST)} stocks. Found {len(signals)} setups. Executed {len(executed)} orders.")
     return {
         "status": "success",
@@ -169,15 +170,18 @@ def auto_trader_daemon():
     except Exception as e:
         print(f"[AutoTrader Startup Scan Error] {e}")
 
+    last_scan_minute = -1
     while True:
         try:
-            now = datetime.datetime.now()
+            now = config.get_ist_now()
             is_open, status_reason = config.get_market_status()
             if AUTO_PILOT_ACTIVE and is_open:
                 monitor_and_manage_positions()
-                if now.minute in [15, 30, 45]:
+                if now.minute % 15 == 0 and now.minute != last_scan_minute:
+                    last_scan_minute = now.minute
                     perform_full_scan()
-            elif not is_open and now.minute == 0:
+            elif not is_open and now.minute == 0 and now.minute != last_scan_minute:
+                last_scan_minute = now.minute
                 add_log(f"Market Status: {status_reason}")
         except Exception as e:
             print(f"[AutoTrader Exception] {e}")
