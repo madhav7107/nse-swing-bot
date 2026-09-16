@@ -47,8 +47,8 @@ NSE_HOLIDAYS_2026 = {
     "2026-12-25": "Christmas"
 }
 
-# Institutional Confluence Threshold (e.g. 60% for active testing, 75% for strict conservative)
-CONFLUENCE_THRESHOLD = 60
+# Institutional Confluence Threshold (75% for strict high-probability institutional setups)
+CONFLUENCE_THRESHOLD = 75
 
 def get_ist_now():
     import datetime
