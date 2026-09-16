@@ -16,7 +16,7 @@ import datetime
 import subprocess
 import os
 
-app = FastAPI(title="NSE Swing Bot Dashboard")
+app = FastAPI(title="SR-TRADING Dashboard")
 
 init_db()
 
@@ -272,7 +272,7 @@ def index():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>NSE Swing Bot | Madhav Kotecha</title>
+        <title>SR-TRADING | Madhav Kotecha</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
         <style>
@@ -284,51 +284,51 @@ def index():
     <body class="bg-slate-950 text-slate-100 min-h-screen">
         
         <!-- Top Clean Navbar -->
-        <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <header class="border-b border-slate-800 bg-slate-900/95 backdrop-blur sticky top-0 z-50 py-3">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-[64px] flex flex-wrap items-center justify-between gap-3">
                 
                 <!-- Left Brand -->
-                <div class="flex items-center space-x-3">
-                    <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20 text-lg">
-                        <i class="fa-solid fa-robot"></i>
+                <div class="flex items-center space-x-3.5">
+                    <div class="h-11 w-11 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-emerald-500/20 text-xl flex-shrink-0">
+                        <i class="fa-solid fa-chart-line"></i>
                     </div>
                     <div>
-                        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
-                            NSE Swing Bot
-                            <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-semibold">Madhav Kotecha</span>
-                        </h1>
-                        <p class="text-xs text-slate-400 flex items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-xl font-extrabold tracking-wider text-white">SR-TRADING</h1>
+                            <span class="text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-semibold">Madhav Kotecha</span>
+                        </div>
+                        <p class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
                             <span class="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span>Auto-Pilot: <strong class="text-emerald-400">ACTIVE & SCANNING</strong></span>
+                            <span>Auto-Pilot: <strong class="text-emerald-400 font-semibold">ACTIVE & SCANNING</strong></span>
                         </p>
                     </div>
                 </div>
 
                 <!-- Center Real-time Indices & Live Floating P&L -->
-                <div class="hidden md:flex items-center space-x-4 text-xs font-mono bg-slate-950/80 border border-slate-800 px-4 py-1.5 rounded-xl shadow-inner">
+                <div class="flex items-center space-x-4 text-xs font-mono bg-slate-950/80 border border-slate-800 px-4 py-2 rounded-xl shadow-inner">
                     <div class="flex items-center gap-2">
                         <span class="text-slate-400 font-bold">NIFTY:</span>
                         <span class="text-white font-bold" id="niftyLtp">--</span>
                         <span class="text-emerald-400 text-[11px]" id="niftyChg">Loading...</span>
                     </div>
-                    <div class="h-3 w-px bg-slate-800"></div>
+                    <div class="h-3.5 w-px bg-slate-800"></div>
                     <div class="flex items-center gap-2">
                         <span class="text-slate-400 font-bold">SENSEX:</span>
                         <span class="text-white font-bold" id="sensexLtp">--</span>
                         <span class="text-emerald-400 text-[11px]" id="sensexChg">Loading...</span>
                     </div>
-                    <div class="h-3 w-px bg-slate-800"></div>
+                    <div class="h-3.5 w-px bg-slate-800"></div>
                     <div class="flex items-center gap-1.5">
                         <span class="text-slate-400 font-bold">LIVE P&L:</span>
-                        <span id="topLivePnl" class="font-bold text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">₹0.00</span>
+                        <span id="topLivePnl" class="font-bold text-xs px-2.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">₹0.00</span>
                     </div>
                 </div>
 
                 <!-- Right Controls -->
                 <div class="flex items-center space-x-3">
-                    <div class="hidden sm:flex bg-slate-800/80 border border-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg items-center gap-2">
+                    <div class="hidden sm:flex bg-slate-800/80 border border-slate-700 text-slate-300 text-xs px-3 py-2 rounded-lg items-center gap-2 font-mono">
                         <i class="fa-solid fa-clock text-slate-400"></i>
-                        <span>Last Scan: <strong id="topLastScan" class="text-white">-</strong></span>
+                        <span>Scan: <strong id="topLastScan" class="text-white">-</strong></span>
                     </div>
                     <button onclick="triggerScan()" id="scanBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all shadow-md shadow-emerald-600/30 flex items-center gap-2">
                         <i class="fa-solid fa-bolt"></i>
