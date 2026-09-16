@@ -146,13 +146,15 @@ def check_nifty_market_health() -> bool:
         return True
 
 def get_latest_price(symbol: str) -> Optional[float]:
-    """Fetches the latest real-time/closing price for a stock."""
+    """Fetches the latest real-time price using fast_info."""
     try:
         formatted_symbol = symbol if symbol.endswith(".NS") else f"{symbol}.NS"
-        ticker = yf.Ticker(formatted_symbol)
-        todays_data = ticker.history(period="2d", interval="1d")
+        t = yf.Ticker(formatted_symbol)
+        if hasattr(t, "fast_info") and "lastPrice" in t.fast_info and t.fast_info["lastPrice"] is not None:
+            return round(float(t.fast_info["lastPrice"]), 2)
+        todays_data = t.history(period="2d", interval="1d")
         if not todays_data.empty:
-            return float(todays_data["Close"].iloc[-1])
+            return round(float(todays_data["Close"].iloc[-1]), 2)
         return None
     except Exception as e:
         print(f"Error fetching latest price for {symbol}: {e}")

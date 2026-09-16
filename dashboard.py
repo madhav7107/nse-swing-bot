@@ -39,29 +39,29 @@ def add_log(msg: str):
 
 def get_live_indices():
     now = datetime.datetime.now()
-    if "data" in INDEX_CACHE and (now - INDEX_CACHE["time"]).total_seconds() < 45:
+    if "data" in INDEX_CACHE and (now - INDEX_CACHE["time"]).total_seconds() < 8:
         return INDEX_CACHE["data"]
     
-    tickers = {"NIFTY 50": "^NSEI", "BANK NIFTY": "^NSEBANK", "SENSEX": "^BSESN"}
+    tickers = {"NIFTY 50": "^NSEI", "SENSEX": "^BSESN"}
     try:
         import yfinance as yf
-        df = yf.download(list(tickers.values()), period="5d", interval="1d", progress=False)["Close"]
         result = []
         for name, sym in tickers.items():
-            if sym in df.columns:
-                s = df[sym].dropna()
-                if len(s) >= 2:
-                    cur = round(float(s.iloc[-1]), 2)
-                    prev = round(float(s.iloc[-2]), 2)
-                    chg = round(cur - prev, 2)
-                    pct = round((chg / prev) * 100, 2)
-                    result.append({
-                        "name": name,
-                        "ltp": cur,
-                        "change": chg,
-                        "change_pct": pct,
-                        "is_up": chg >= 0
-                    })
+            try:
+                t = yf.Ticker(sym)
+                cur = round(float(t.fast_info['lastPrice']), 2)
+                prev = round(float(t.fast_info['previousClose']), 2)
+                chg = round(cur - prev, 2)
+                pct = round((chg / prev) * 100, 2)
+                result.append({
+                    "name": name,
+                    "ltp": cur,
+                    "change": chg,
+                    "change_pct": pct,
+                    "is_up": chg >= 0
+                })
+            except Exception:
+                pass
         if result:
             INDEX_CACHE["data"] = result
             INDEX_CACHE["time"] = now
@@ -304,10 +304,10 @@ def index():
                     </div>
                 </div>
 
-                <!-- Center Real-time Indices (NIFTY & SENSEX) -->
-                <div class="hidden md:flex items-center space-x-6 text-xs font-mono bg-slate-950/60 border border-slate-800 px-4 py-1.5 rounded-xl">
+                <!-- Center Real-time Indices & Live Floating P&L -->
+                <div class="hidden md:flex items-center space-x-4 text-xs font-mono bg-slate-950/80 border border-slate-800 px-4 py-1.5 rounded-xl shadow-inner">
                     <div class="flex items-center gap-2">
-                        <span class="text-slate-400 font-bold">NIFTY 50:</span>
+                        <span class="text-slate-400 font-bold">NIFTY:</span>
                         <span class="text-white font-bold" id="niftyLtp">--</span>
                         <span class="text-emerald-400 text-[11px]" id="niftyChg">Loading...</span>
                     </div>
@@ -316,6 +316,11 @@ def index():
                         <span class="text-slate-400 font-bold">SENSEX:</span>
                         <span class="text-white font-bold" id="sensexLtp">--</span>
                         <span class="text-emerald-400 text-[11px]" id="sensexChg">Loading...</span>
+                    </div>
+                    <div class="h-3 w-px bg-slate-800"></div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-slate-400 font-bold">LIVE P&L:</span>
+                        <span id="topLivePnl" class="font-bold text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">₹0.00</span>
                     </div>
                 </div>
 
@@ -335,21 +340,6 @@ def index():
                 </div>
             </div>
         </header>
-
-        <!-- Mobile Access Guide Banner -->
-        <div class="bg-gradient-to-r from-emerald-950/50 via-slate-900 to-cyan-950/50 border-b border-slate-800 px-4 py-2.5">
-            <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-                <div class="flex items-center gap-2 text-slate-300">
-                    <i class="fa-solid fa-mobile-screen text-emerald-400 text-sm"></i>
-                    <span><strong>મોબાઈલમાં ઓપન કરવા માટે:</strong> તમારા ફોનના Chrome માં આ લિંક ખોલો:</span>
-                    <a href="http://192.168.1.9:8000" target="_blank" class="text-emerald-400 font-mono font-bold text-sm bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-lg hover:underline">http://192.168.1.9:8000</a>
-                </div>
-                <div class="text-slate-400 text-[11px] flex items-center gap-2">
-                    <span class="inline-block h-2 w-2 rounded-full bg-emerald-400"></span>
-                    <span>મોબાઈલ અને કમ્પ્યુટર એક જ Wi-Fi પર હોવા જરૂરી છે</span>
-                </div>
-            </div>
-        </div>
 
         <!-- Main Content -->
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -383,6 +373,19 @@ def index():
                     <div class="mt-1 text-xs text-slate-400" id="statPositionsCount">0 Open Trades</div>
                 </div>
 
+                <!-- Live Open P&L Card -->
+                <div class="bg-slate-900 border border-emerald-500/30 rounded-2xl p-4 shadow-sm relative overflow-hidden bg-gradient-to-br from-slate-900 to-emerald-950/20">
+                    <div class="flex items-center justify-between text-xs text-slate-300 font-medium">
+                        <span class="flex items-center gap-1.5 font-semibold text-emerald-400">
+                            <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span>LIVE OPEN P&L</span>
+                        </span>
+                        <i class="fa-solid fa-chart-line text-emerald-400"></i>
+                    </div>
+                    <div class="mt-2 text-2xl font-bold tracking-tight text-emerald-400" id="statLivePnl">+₹0.00</div>
+                    <div class="mt-1 text-xs text-slate-400" id="statLivePnlPct">+0.00% Floating Return</div>
+                </div>
+
                 <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
                     <div class="flex items-center justify-between text-xs text-slate-400 font-medium">
                         <span>Realized P&L</span>
@@ -391,39 +394,16 @@ def index():
                     <div class="mt-2 text-2xl font-bold tracking-tight" id="statRealized">₹0.00</div>
                     <div class="mt-1 text-xs text-slate-400" id="statAvgPct">0.0% Avg Return</div>
                 </div>
-
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm">
-                    <div class="flex items-center justify-between text-xs text-slate-400 font-medium">
-                        <span>Win Rate</span>
-                        <i class="fa-solid fa-trophy text-yellow-400"></i>
-                    </div>
-                    <div class="mt-2 text-2xl font-bold tracking-tight text-white" id="statWinRate">0.0%</div>
-                    <div class="mt-1 text-xs text-slate-400" id="statTradeCounts">0 Wins / 0 Losses</div>
-                </div>
             </div>
 
-            <!-- Bot Live Activity Feed (Console) -->
-            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-terminal text-emerald-400"></i>
-                        <h2 class="text-sm font-bold text-white uppercase tracking-wider">Bot Live Activity Feed</h2>
-                    </div>
-                    <span class="text-[11px] bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded">Realtime Logs</span>
-                </div>
-                <div id="logsConsole" class="bg-slate-950 border border-slate-800 rounded-xl p-3 h-36 overflow-y-auto font-mono text-xs text-slate-300 space-y-1">
-                    <div class="text-slate-500">Waiting for bot logs...</div>
-                </div>
-            </div>
-
-            <!-- Active Positions Section -->
+            <!-- Active Positions Section (Moved right under Stats Cards) -->
             <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
                 <div class="flex items-center justify-between mb-4">
                     <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i>
+                        <i class="fa-solid fa-clock-rotate-left text-emerald-400 text-base"></i>
                         <h2 class="text-sm font-bold text-white uppercase tracking-wider">Active Swing Positions (Auto-Managed)</h2>
                     </div>
-                    <span class="text-xs text-slate-400" id="positionsBadge">0 Active</span>
+                    <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-bold" id="positionsBadge">0 Active</span>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -434,13 +414,13 @@ def index():
                                 <th class="py-3 px-4">Entry Date</th>
                                 <th class="py-3 px-4">Buy Price</th>
                                 <th class="py-3 px-4">Qty</th>
-                                <th class="py-3 px-4">LTP</th>
+                                <th class="py-3 px-4">LTP (Live)</th>
                                 <th class="py-3 px-4">Stop Loss</th>
                                 <th class="py-3 px-4">Target (1:2)</th>
-                                <th class="py-3 px-4">Unrealized P&L</th>
+                                <th class="py-3 px-4">Live Unrealized P&L</th>
                             </tr>
                         </thead>
-                        <tbody id="positionsTableBody" class="divide-y divide-slate-800/60">
+                        <tbody id="positionsTableBody" class="divide-y divide-slate-800/60 font-mono">
                             <tr>
                                 <td colspan="8" class="text-center py-6 text-slate-500">No active swing trades right now. The bot will automatically buy when a setup occurs!</td>
                             </tr>
@@ -515,6 +495,18 @@ def index():
                         </tbody>
                     </table>
                 </div>
+            <!-- Bot Live Activity Feed (Console) at bottom -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-terminal text-emerald-400"></i>
+                        <h2 class="text-sm font-bold text-white uppercase tracking-wider">Bot Live Activity Feed</h2>
+                    </div>
+                    <span class="text-[11px] bg-slate-800 border border-slate-700 text-slate-300 px-2 py-0.5 rounded">Realtime Logs</span>
+                </div>
+                <div id="logsConsole" class="bg-slate-950 border border-slate-800 rounded-xl p-3 h-32 overflow-y-auto font-mono text-xs text-slate-300 space-y-1">
+                    <div class="text-slate-500">Waiting for bot logs...</div>
+                </div>
             </div>
 
         </main>
@@ -530,7 +522,7 @@ def index():
                         const arrow = isUp ? '▲' : '▼';
                         const colorClass = isUp ? 'text-emerald-400' : 'text-rose-400';
                         
-                        if (idx.name === 'NIFTY 50') {
+                        if (idx.name === 'NIFTY 50' || idx.name === 'NIFTY') {
                             const ltpEl = document.getElementById('niftyLtp');
                             const chgEl = document.getElementById('niftyChg');
                             if (ltpEl) ltpEl.innerText = idx.ltp.toLocaleString('en-IN');
@@ -564,14 +556,35 @@ def index():
                     document.getElementById('statInvested').innerText = '₹' + stats.invested_capital.toLocaleString('en-IN');
                     document.getElementById('topLastScan').innerText = stats.last_scan.substring(11, 19) || 'Just now';
                     
+                    // Live Open P&L
+                    const livePnl = stats.unrealized_pnl || 0;
+                    const liveColor = livePnl >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                    const liveSign = livePnl >= 0 ? '+' : '';
+                    const liveBadgeClass = livePnl >= 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+
+                    const statLiveEl = document.getElementById('statLivePnl');
+                    if (statLiveEl) {
+                        statLiveEl.className = 'mt-2 text-2xl font-bold tracking-tight ' + liveColor;
+                        statLiveEl.innerText = liveSign + '₹' + livePnl.toLocaleString('en-IN');
+                    }
+                    const statLivePctEl = document.getElementById('statLivePnlPct');
+                    if (statLivePctEl) {
+                        const inv = stats.invested_capital > 0 ? ((livePnl / stats.invested_capital) * 100).toFixed(2) : '0.00';
+                        statLivePctEl.innerText = liveSign + inv + '% Floating Return';
+                    }
+                    
+                    const topPnl = document.getElementById('topLivePnl');
+                    if (topPnl) {
+                        topPnl.className = 'font-bold text-xs px-2 py-0.5 rounded border ' + liveBadgeClass;
+                        topPnl.innerText = liveSign + '₹' + livePnl.toLocaleString('en-IN');
+                    }
+
+                    // Realized P&L
                     const pnlColor = stats.total_realized_pnl >= 0 ? 'text-emerald-400' : 'text-rose-400';
                     const pnlSign = stats.total_realized_pnl >= 0 ? '+' : '';
                     document.getElementById('statRealized').className = 'mt-2 text-2xl font-bold tracking-tight ' + pnlColor;
                     document.getElementById('statRealized').innerText = pnlSign + '₹' + stats.total_realized_pnl.toLocaleString('en-IN');
                     document.getElementById('statAvgPct').innerText = pnlSign + stats.avg_pnl_pct + '% Avg Trade';
-                    
-                    document.getElementById('statWinRate').innerText = stats.win_rate + '%';
-                    document.getElementById('statTradeCounts').innerText = `${stats.winning_trades} Wins / ${stats.losing_trades} Losses (PF: ${stats.profit_factor})`;
                     
                     // 2. Positions
                     const posRes = await fetch('/api/positions');
@@ -581,24 +594,27 @@ def index():
                     
                     const pTable = document.getElementById('positionsTableBody');
                     if (positions.length === 0) {
-                        pTable.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-slate-500">No active swing trades right now. The bot will automatically buy when a setup occurs!</td></tr>';
+                        pTable.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-slate-500 font-sans">No active swing trades right now. The bot will automatically buy when a setup occurs!</td></tr>';
                     } else {
                         pTable.innerHTML = positions.map(p => {
-                            const pnlClass = p.pnl >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold';
-                            const pnlPlus = p.pnl >= 0 ? '+' : '';
+                            const curLtp = p.ltp || p.entry_price;
+                            const curPnl = ((curLtp - p.entry_price) * p.quantity).toFixed(2);
+                            const curPnlPct = (((curLtp - p.entry_price) / p.entry_price) * 100).toFixed(2);
+                            const pnlClass = curPnl >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold';
+                            const pnlPlus = curPnl >= 0 ? '+' : '';
                             return `
                                 <tr class="hover:bg-slate-800/40 transition">
-                                    <td class="py-3 px-4 font-bold text-white flex items-center gap-2">
-                                        <span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+                                    <td class="py-3 px-4 font-bold text-white flex items-center gap-2 font-sans">
+                                        <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
                                         ${p.symbol.replace('.NS', '')}
                                     </td>
-                                    <td class="py-3 px-4 text-slate-400">${p.entry_date.substring(0, 10)}</td>
+                                    <td class="py-3 px-4 text-slate-400 font-sans">${p.entry_date.substring(0, 10)}</td>
                                     <td class="py-3 px-4">₹${p.entry_price}</td>
                                     <td class="py-3 px-4">${p.quantity}</td>
-                                    <td class="py-3 px-4 font-semibold text-white">₹${p.ltp}</td>
+                                    <td class="py-3 px-4 font-semibold text-white">₹${curLtp}</td>
                                     <td class="py-3 px-4 text-rose-400">₹${p.stop_loss}</td>
                                     <td class="py-3 px-4 text-emerald-400">₹${p.target_price}</td>
-                                    <td class="py-3 px-4 ${pnlClass}">${pnlPlus}₹${p.pnl} (${pnlPlus}${p.pnl_pct}%)</td>
+                                    <td class="py-3 px-4 ${pnlClass}">${pnlPlus}₹${curPnl} (${pnlPlus}${curPnlPct}%)</td>
                                 </tr>
                             `;
                         }).join('');
@@ -615,8 +631,6 @@ def index():
                             else if (s.color === "amber") badgeClass = "bg-amber-500/10 border-amber-500/30 text-amber-400 font-semibold";
                             else if (s.color === "blue") badgeClass = "bg-blue-500/10 border-blue-500/30 text-blue-400";
 
-                            const trendColor = s.trend === "UPTREND" ? "text-emerald-400" : "text-rose-400";
-
                             const emaCrossClass = s.ema_cross === "BULLISH" ? "text-emerald-400 font-bold" : "text-slate-500";
                             const stClass = s.supertrend === "BULLISH" ? "text-emerald-400 font-bold" : "text-rose-400";
                             const macdClass = s.macd_bullish ? "text-emerald-400 font-bold" : "text-slate-500";
@@ -624,14 +638,14 @@ def index():
 
                             return `
                                 <tr class="hover:bg-slate-800/40 transition">
-                                    <td class="py-3 px-4 font-bold text-white">${s.symbol}</td>
-                                    <td class="py-3 px-4 font-semibold text-white">₹${s.ltp}</td>
+                                    <td class="py-3 px-4 font-bold text-white font-sans">${s.symbol}</td>
+                                    <td class="py-3 px-4 font-semibold text-white font-mono">₹${s.ltp}</td>
                                     <td class="py-3 px-4 ${emaCrossClass}">${s.ema_cross || '-'}</td>
-                                    <td class="py-3 px-4 text-slate-400">₹${s.ema200 || '-'}</td>
-                                    <td class="py-3 px-4 ${rsiClass}">${s.rsi || '-'}</td>
+                                    <td class="py-3 px-4 text-slate-400 font-mono">₹${s.ema200 || '-'}</td>
+                                    <td class="py-3 px-4 ${rsiClass} font-mono">${s.rsi || '-'}</td>
                                     <td class="py-3 px-4 ${stClass}">${s.supertrend || '-'}</td>
                                     <td class="py-3 px-4 ${macdClass}">${s.macd_bullish ? 'BULLISH' : 'NEUTRAL'}</td>
-                                    <td class="py-3 px-4">
+                                    <td class="py-3 px-4 font-sans">
                                         <span class="px-2.5 py-1 rounded-md text-[11px] border ${badgeClass}">
                                             ${s.status}
                                         </span>
@@ -661,24 +675,24 @@ def index():
                     document.getElementById('historyBadge').innerText = `${history.length} Completed`;
                     const hTable = document.getElementById('historyTableBody');
                     if (history.length === 0) {
-                        hTable.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-slate-500">No completed trades yet. Paper trades will appear here after hitting target or stop-loss.</td></tr>';
+                        hTable.innerHTML = '<tr><td colspan="7" class="text-center py-6 text-slate-500 font-sans">No completed trades yet. Paper trades will appear here after hitting target or stop-loss.</td></tr>';
                     } else {
                         hTable.innerHTML = history.map(h => {
                             const pnlClass = h.pnl >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold';
                             const pnlPlus = h.pnl >= 0 ? '+' : '';
                             return `
                                 <tr class="hover:bg-slate-800/40 transition">
-                                    <td class="py-3 px-4 font-bold text-white">${h.symbol.replace('.NS', '')}</td>
-                                    <td class="py-3 px-4 text-slate-400">${h.entry_date.substring(0, 10)}</td>
-                                    <td class="py-3 px-4">₹${h.entry_price}</td>
-                                    <td class="py-3 px-4 text-slate-400">${(h.exit_date || '').substring(0, 10)}</td>
-                                    <td class="py-3 px-4 font-semibold text-white">₹${h.exit_price || '-'}</td>
-                                    <td class="py-3 px-4">
+                                    <td class="py-3 px-4 font-bold text-white font-sans">${h.symbol.replace('.NS', '')}</td>
+                                    <td class="py-3 px-4 text-slate-400 font-sans">${h.entry_date.substring(0, 10)}</td>
+                                    <td class="py-3 px-4 font-mono">₹${h.entry_price}</td>
+                                    <td class="py-3 px-4 text-slate-400 font-sans">${(h.exit_date || '').substring(0, 10)}</td>
+                                    <td class="py-3 px-4 font-semibold text-white font-mono">₹${h.exit_price || '-'}</td>
+                                    <td class="py-3 px-4 font-sans">
                                         <span class="px-2 py-0.5 rounded text-[11px] bg-slate-800 border border-slate-700 text-slate-300">
                                             ${h.exit_reason || h.status}
                                         </span>
                                     </td>
-                                    <td class="py-3 px-4 ${pnlClass}">${pnlPlus}₹${h.pnl} (${pnlPlus}${h.pnl_pct}%)</td>
+                                    <td class="py-3 px-4 ${pnlClass} font-mono">${pnlPlus}₹${h.pnl} (${pnlPlus}${h.pnl_pct}%)</td>
                                 </tr>
                             `;
                         }).join('');
@@ -716,8 +730,8 @@ def index():
             window.onload = () => {
                 loadIndices();
                 loadDashboard();
-                setInterval(loadIndices, 30000);
-                setInterval(loadDashboard, 10000);
+                setInterval(loadIndices, 4000);   // Refresh NIFTY & SENSEX every 4 seconds
+                setInterval(loadDashboard, 3000); // Refresh Positions & Live P&L every 3 seconds
             };
         </script>
     </body>
