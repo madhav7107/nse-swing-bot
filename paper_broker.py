@@ -50,6 +50,16 @@ def execute_paper_buy(setup: Dict) -> bool:
         notes=setup.get("reason", "")
     )
     
+    # Synchronize order to MegaBull app if enabled
+    if getattr(config, "MEGABULL_ENABLED", False):
+        try:
+            from megabull_broker import place_order as mb_place_order
+            mb_res = mb_place_order(symbol, qty, "BUY", entry_price)
+            if mb_res and "id" in mb_res:
+                print(f"[MegaBull] Successfully synced BUY order ID: {mb_res['id']} to MegaBull account!")
+        except Exception as mb_err:
+            print(f"[MegaBull Order Sync Error] {mb_err}")
+
     notify_buy({
         "symbol": symbol,
         "entry_price": entry_price,
@@ -106,6 +116,15 @@ def monitor_and_manage_positions():
             pnl = (exit_price - entry_price) * qty
             pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0
             log_trade_exit(trade_id, exit_price, "Stop Loss Triggered")
+            
+            # Sync exit to MegaBull app
+            if getattr(config, "MEGABULL_ENABLED", False):
+                try:
+                    from megabull_broker import place_order as mb_place_order
+                    mb_place_order(symbol, qty, "SELL", exit_price)
+                except Exception as mb_err:
+                    print(f"[MegaBull SL Exit Sync Error] {mb_err}")
+
             notify_stop_loss_hit(trade, exit_price, pnl)
             print(f"[STOP-LOSS HIT] on {symbol} at Rs. {exit_price} (P&L: Rs. {round(pnl, 2)})")
             continue
@@ -116,6 +135,15 @@ def monitor_and_manage_positions():
             pnl = (exit_price - entry_price) * qty
             pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0
             log_trade_exit(trade_id, exit_price, "Target Reached")
+            
+            # Sync exit to MegaBull app
+            if getattr(config, "MEGABULL_ENABLED", False):
+                try:
+                    from megabull_broker import place_order as mb_place_order
+                    mb_place_order(symbol, qty, "SELL", exit_price)
+                except Exception as mb_err:
+                    print(f"[MegaBull Target Exit Sync Error] {mb_err}")
+
             notify_target_hit(trade, exit_price, pnl)
             print(f"[TARGET REACHED] on {symbol} at Rs. {exit_price} (P&L: +Rs. {round(pnl, 2)})")
             continue
