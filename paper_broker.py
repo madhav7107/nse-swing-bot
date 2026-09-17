@@ -6,13 +6,7 @@ from trade_logger import (
 )
 from risk_manager import calculate_position_size
 from data_engine import get_stock_data, get_latest_price
-try:
-    from ntfy_notifier import notify_buy, notify_target_hit, notify_stop_loss_hit, notify_trailing_sl
-except ImportError:
-    def notify_buy(trade): pass
-    def notify_target_hit(trade, ltp, pnl): pass
-    def notify_stop_loss_hit(trade, ltp, pnl): pass
-    def notify_trailing_sl(symbol, old_sl, new_sl, ltp): pass
+from ntfy_notifier import notify_buy, notify_target_hit, notify_stop_loss_hit, notify_trailing_sl
 
 def execute_paper_buy(setup: Dict) -> bool:
     """
