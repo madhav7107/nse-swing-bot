@@ -7,11 +7,12 @@ from trade_logger import (
 from risk_manager import calculate_position_size
 from data_engine import get_stock_data, get_latest_price
 try:
-    from telegram_notifier import notify_buy_signal, notify_exit_signal, notify_trailing_sl
+    from ntfy_notifier import notify_buy, notify_target_hit, notify_stop_loss_hit, notify_trailing_sl
 except ImportError:
-    def notify_buy_signal(setup, qty, trade_id): pass
-    def notify_exit_signal(trade, exit_price, reason): pass
-    def notify_trailing_sl(symbol, new_sl, ltp): pass
+    def notify_buy(trade): pass
+    def notify_target_hit(trade, ltp, pnl): pass
+    def notify_stop_loss_hit(trade, ltp, pnl): pass
+    def notify_trailing_sl(symbol, old_sl, new_sl, ltp): pass
 
 def execute_paper_buy(setup: Dict) -> bool:
     """
@@ -49,7 +50,15 @@ def execute_paper_buy(setup: Dict) -> bool:
         notes=setup.get("reason", "")
     )
     
-    notify_buy_signal(setup, qty, trade_id)
+    notify_buy({
+        "symbol": symbol,
+        "entry_price": entry_price,
+        "quantity": qty,
+        "stop_loss": stop_loss,
+        "target_price": target_price,
+        "pattern": setup.get("pattern", "Zone Bounce"),
+        "confluence_score": setup.get("confluence_score", 75)
+    })
     print(f"[PAPER ORDER EXECUTED] Bought {qty} shares of {symbol} at Rs. {entry_price} (Target: Rs. {target_price}, SL: Rs. {stop_loss})")
     return True
 
@@ -97,7 +106,7 @@ def monitor_and_manage_positions():
             pnl = (exit_price - entry_price) * qty
             pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0
             log_trade_exit(trade_id, exit_price, "Stop Loss Triggered")
-            notify_exit_signal(trade, exit_price, "Stop Loss Triggered", pnl, pnl_pct)
+            notify_stop_loss_hit(trade, exit_price, pnl)
             print(f"[STOP-LOSS HIT] on {symbol} at Rs. {exit_price} (P&L: Rs. {round(pnl, 2)})")
             continue
             
@@ -107,7 +116,7 @@ def monitor_and_manage_positions():
             pnl = (exit_price - entry_price) * qty
             pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0
             log_trade_exit(trade_id, exit_price, "Target Reached")
-            notify_exit_signal(trade, exit_price, "Target Reached (Full Profit)", pnl, pnl_pct)
+            notify_target_hit(trade, exit_price, pnl)
             print(f"[TARGET REACHED] on {symbol} at Rs. {exit_price} (P&L: +Rs. {round(pnl, 2)})")
             continue
             
@@ -120,7 +129,7 @@ def monitor_and_manage_positions():
             if today_high >= one_r_level and stop_loss < entry_price:
                 new_sl = round(entry_price * 1.002, 2) # Slightly above cost to cover brokerage/charges
                 update_stop_loss(trade_id, new_sl, "Moved SL to Breakeven (Cost)")
-                notify_trailing_sl(trade, stop_loss, new_sl)
+                notify_trailing_sl(symbol, stop_loss, new_sl, today_close)
                 print(f"[TRAILING SL] {symbol}: Profit > 1R. Moved Stop Loss to Cost (Rs. {new_sl})")
                 stop_loss = new_sl
                 
@@ -130,7 +139,7 @@ def monitor_and_manage_positions():
                 new_sl = round(ema20 * 0.995, 2)
                 if new_sl > stop_loss:
                     update_stop_loss(trade_id, new_sl, f"Trailed SL using 20 EMA (Rs. {new_sl})")
-                    notify_trailing_sl(trade, stop_loss, new_sl)
+                    notify_trailing_sl(symbol, stop_loss, new_sl, today_close)
                     print(f"[TRAILING SL] {symbol}: Trailed Stop Loss to Rs. {new_sl} using 20 EMA")
     
     # Save daily portfolio snapshot
