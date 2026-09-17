@@ -247,6 +247,25 @@ def api_radar():
 def api_logs():
     return ACTIVITY_LOGS[:50]
 
+@app.get("/api/megabull")
+def api_megabull():
+    if not getattr(config, "MEGABULL_ENABLED", False):
+        return {"enabled": False}
+    try:
+        from megabull_broker import get_account_profile, get_holdings
+        prof = get_account_profile()
+        holdings = get_holdings()
+        return {
+            "enabled": True,
+            "connected": bool(prof),
+            "user": f"{prof.get('firstName', '')} {prof.get('lastName', '')}".strip(),
+            "virtual_balance": prof.get("virtualMoneyLeft", 500000),
+            "tier": prof.get("premiumType", "PRO"),
+            "holdings_count": len(holdings)
+        }
+    except Exception as e:
+        return {"enabled": True, "connected": False, "error": str(e)}
+
 @app.post("/api/scan")
 def api_scan():
     return perform_full_scan()
@@ -328,9 +347,16 @@ def index():
                             <h1 class="text-xl font-extrabold tracking-wider text-white">SR-TRADING</h1>
                             <span class="text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full font-semibold">Madhav Kotecha</span>
                         </div>
-                        <p class="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
-                            <span class="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span>Auto-Pilot: <strong class="text-emerald-400 font-semibold">ACTIVE & SCANNING</strong></span>
+                        <p class="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                            <span class="flex items-center gap-1.5">
+                                <span class="inline-block h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span>Auto-Pilot: <strong class="text-emerald-400 font-semibold">ACTIVE</strong></span>
+                            </span>
+                            <span class="text-slate-600">•</span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="inline-block h-2 w-2 rounded-full bg-blue-400 animate-pulse"></span>
+                                <span>MegaBull: <strong class="text-blue-400 font-semibold">PRO SYNCED</strong></span>
+                            </span>
                         </p>
                     </div>
                 </div>
