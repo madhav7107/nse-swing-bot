@@ -106,8 +106,13 @@ BACKUP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trades_b
 # ntfy.sh Mobile Push Notifications Configuration
 NTFY_TOPIC = os.getenv("NTFY_TOPIC", "sr_trading_madhav")
 
+# MegaBull Paper Trading API Integration
+MEGABULL_API_KEY = os.getenv("MEGABULL_API_KEY", "dc09ce27-75b6-4f06-b3e9-646c484ab7ee")
+MEGABULL_ENABLED = os.getenv("MEGABULL_ENABLED", "True").lower() in ("true", "1", "yes")
+
 # Angel One SmartAPI Credentials (For Live Trading after 2 months paper trading)
 ANGEL_API_KEY = os.getenv("ANGEL_API_KEY", "")
 ANGEL_CLIENT_CODE = os.getenv("ANGEL_CLIENT_CODE", "")
 ANGEL_PASSWORD = os.getenv("ANGEL_PASSWORD", "")
 ANGEL_TOTP_KEY = os.getenv("ANGEL_TOTP_KEY", "")
+
