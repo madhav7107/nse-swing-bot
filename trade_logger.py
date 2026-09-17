@@ -1,5 +1,7 @@
 import sqlite3
 import datetime
+import json
+import os
 from typing import Dict, List, Optional
 import config
 
@@ -70,6 +72,7 @@ def init_db():
     
     conn.commit()
     conn.close()
+    restore_from_json()
 
 def get_account_balance() -> float:
     conn = get_connection()
@@ -91,6 +94,7 @@ def update_account_balance(new_balance: float):
     )
     conn.commit()
     conn.close()
+    backup_to_json()
 
 def log_trade_entry(symbol: str, entry_price: float, quantity: int, stop_loss: float, target_price: float, notes: str = "") -> int:
     conn = get_connection()
@@ -105,6 +109,7 @@ def log_trade_entry(symbol: str, entry_price: float, quantity: int, stop_loss: f
     trade_id = cursor.lastrowid
     conn.commit()
     conn.close()
+    backup_to_json()
     return trade_id
 
 def log_trade_exit(trade_id: int, exit_price: float, exit_reason: str):
@@ -156,6 +161,7 @@ def update_stop_loss(trade_id: int, new_sl: float, note: str = ""):
     cursor.execute("UPDATE trades SET stop_loss = ?, notes = notes || ' | ' || ? WHERE id = ?", (new_sl, note, trade_id))
     conn.commit()
     conn.close()
+    backup_to_json()
 
 def get_open_trades() -> List[Dict]:
     conn = get_connection()
@@ -185,6 +191,7 @@ def log_equity_snapshot(invested_amount: float, unrealized_pnl: float, open_posi
     """, (now, cash, invested_amount, total_equity, unrealized_pnl, open_positions))
     conn.commit()
     conn.close()
+    backup_to_json()
 
 def get_performance_stats() -> Dict:
     conn = get_connection()
@@ -228,3 +235,66 @@ def get_performance_stats() -> Dict:
         "avg_pnl_pct": round(avg_pnl_pct, 2),
         "profit_factor": round(profit_factor, 2)
     }
+
+
+def backup_to_json():
+    """Backs up all trades and account balance to a persistent JSON file."""
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM trades")
+        trades = [dict(row) for row in cursor.fetchall()]
+        cursor.execute("SELECT balance, initial_capital FROM account WHERE id = 1")
+        acc = cursor.fetchone()
+        account_data = dict(acc) if acc else {}
+        conn.close()
+        
+        data = {
+            "account": account_data,
+            "trades": trades,
+            "backup_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        with open(config.BACKUP_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"[Backup Error] {e}")
+
+def restore_from_json():
+    """Restores trades and balance from JSON backup if database is empty."""
+    try:
+        if not os.path.exists(config.BACKUP_PATH):
+            return
+        with open(config.BACKUP_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        trades = data.get("trades", [])
+        if not trades:
+            return
+            
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM trades")
+        if cursor.fetchone()[0] == 0:
+            print(f"[Persistence] Restoring {len(trades)} trades from backup...")
+            for t in trades:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO trades (
+                        id, symbol, direction, entry_date, entry_price, quantity,
+                        stop_loss, original_sl, target_price, status, exit_date,
+                        exit_price, pnl, pnl_pct, exit_reason, strategy, notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    t.get("id"), t["symbol"], t.get("direction", "BUY"), t["entry_date"],
+                    t["entry_price"], t["quantity"], t["stop_loss"], t.get("original_sl", t["stop_loss"]),
+                    t["target_price"], t["status"], t.get("exit_date"), t.get("exit_price"),
+                    t.get("pnl"), t.get("pnl_pct"), t.get("exit_reason"),
+                    t.get("strategy", "ZONE_BOUNCE"), t.get("notes", "")
+                ))
+            acc = data.get("account", {})
+            if "balance" in acc:
+                cursor.execute("UPDATE account SET balance = ? WHERE id = 1", (acc["balance"],))
+            conn.commit()
+            print("[Persistence] Successfully restored trades and balance from backup!")
+        conn.close()
+    except Exception as e:
+        print(f"[Restore Error] {e}")
