@@ -4,7 +4,6 @@ import config
 
 def send_ntfy(title: str, message: str, priority: str = "default", tags: list = None):
     topic = getattr(config, "NTFY_TOPIC", "sr_trading_madhav")
-    url = f"https://ntfy.sh/{topic}"
     priority_map = {"min": 1, "low": 2, "default": 3, "high": 4, "urgent": 5}
     p_val = priority_map.get(priority, 4 if priority == "high" else 3)
     payload = {
@@ -14,34 +13,44 @@ def send_ntfy(title: str, message: str, priority: str = "default", tags: list = 
         "priority": p_val,
         "tags": tags or []
     }
-    try:
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            ok = resp.status == 200
-            print(f"[send_ntfy SUCCESS] Status {resp.status} to {url}")
-            return ok
-    except Exception as e:
-        print(f"[send_ntfy ERROR] Failed to send JSON to {url}: {e}")
-        # Fallback to plain text POST
+    
+    servers = [
+        f"https://ntfy.sh/{topic}",
+        f"https://ntfy.adminforge.de/{topic}",
+        f"https://ntfy.tedomum.fr/{topic}"
+    ]
+    
+    delivered = False
+    for url in servers:
         try:
-            clean_title = title.encode("ascii", "ignore").decode("ascii") or "SR-TRADING Alert"
-            req_plain = urllib.request.Request(
+            req = urllib.request.Request(
                 url,
-                data=message.encode("utf-8"),
-                headers={"Title": clean_title, "Priority": str(p_val)},
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json", "User-Agent": "SR-Trading/1.0"},
                 method="POST"
             )
-            with urllib.request.urlopen(req_plain, timeout=10) as resp2:
-                print(f"[send_ntfy FALLBACK SUCCESS] Status {resp2.status}")
-                return resp2.status == 200
-        except Exception as e2:
-            print(f"[send_ntfy FALLBACK ERROR] {e2}")
-            return False
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    delivered = True
+                    print(f"[ntfy SUCCESS] Delivered via {url}")
+        except Exception as e:
+            # Fallback to plain text for this server
+            try:
+                clean_title = title.encode("ascii", "ignore").decode("ascii") or "SR-TRADING Alert"
+                req_plain = urllib.request.Request(
+                    url,
+                    data=message.encode("utf-8"),
+                    headers={"Title": clean_title, "Priority": str(p_val)},
+                    method="POST"
+                )
+                with urllib.request.urlopen(req_plain, timeout=5) as resp2:
+                    if resp2.status == 200:
+                        delivered = True
+                        print(f"[ntfy FALLBACK SUCCESS] Delivered via {url}")
+            except Exception:
+                pass
+                
+    return delivered
 
 def notify_buy(trade: dict):
     sym = trade["symbol"].replace(".NS", "")
