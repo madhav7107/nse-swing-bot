@@ -20,13 +20,26 @@ def notify_buy(trade: dict):
     title = f"🚀 SR-TRADING: BUY {sym}"
     p_name = trade.get("pattern", "Zone Bounce")
     score = trade.get("confluence_score", 75)
+    entry = float(trade["entry_price"])
+    sl = float(trade["stop_loss"])
+    tgt = float(trade["target_price"])
+    qty = trade["quantity"]
+    
+    sl_pct = round(((sl - entry) / entry) * 100, 2)
+    tgt_pct = round(((tgt - entry) / entry) * 100, 2)
+    risk = max(0.01, abs(entry - sl))
+    reward = abs(tgt - entry)
+    rr = round(reward / risk, 2)
+    
     msg = (
         f"Stock: {sym}\n"
-        f"Entry: Rs. {trade['entry_price']}\n"
-        f"Qty: {trade['quantity']}\n"
-        f"SL: Rs. {trade['stop_loss']}\n"
-        f"Target: Rs. {trade['target_price']}\n"
-        f"Pattern: {p_name} [{score}%]"
+        f"Action: BUY (Cash CNC)\n"
+        f"Qty: {qty} shares\n"
+        f"Entry: Rs. {entry}\n"
+        f"SL: Rs. {sl} ({sl_pct}%)\n"
+        f"Target: Rs. {tgt} (+{tgt_pct}%)\n"
+        f"Risk:Reward: 1:{rr}\n"
+        f"Setup: {p_name} [{score}%]"
     )
     return send_ntfy(title, msg, priority="high", tags=["chart_with_upwards_trend", "rocket"])
 
