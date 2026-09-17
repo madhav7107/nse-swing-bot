@@ -280,16 +280,44 @@ def api_megabull():
 
 @app.get("/api/test_ntfy_send")
 def api_test_ntfy_send():
-    from ntfy_notifier import send_ntfy
-    import traceback
+    import urllib.request
+    import urllib.error
+    import json
+    topic = getattr(config, "NTFY_TOPIC", "sr_trading_madhav")
+    url = f"https://ntfy.sh/{topic}"
+    payload = {
+        "topic": topic,
+        "title": "TEST FROM RENDER",
+        "message": "Render test message",
+        "priority": 4
+    }
+    results = {}
+    
+    # Test 1: JSON to https://ntfy.sh
     try:
-        ok = send_ntfy("🔔 TEST FROM RENDER CLOUD", "Madhav bhai, aa message Render Cloud parthi live aavyo che!", priority="high")
-        add_log(f"Render test ntfy result: {ok}")
-        return {"success": ok, "topic": getattr(config, "NTFY_TOPIC", None)}
-    except Exception as e:
-        err = traceback.format_exc()
-        add_log(f"Render test ntfy error: {e}")
-        return {"success": False, "error": str(e), "trace": err}
+        req1 = urllib.request.Request("https://ntfy.sh", data=json.dumps(payload).encode('utf-8'), headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req1, timeout=5) as r1:
+            results["json_root"] = {"status": r1.status, "body": r1.read().decode()}
+    except Exception as e1:
+        results["json_root"] = {"error": str(e1)}
+        
+    # Test 2: Plain text POST to https://ntfy.sh/{topic}
+    try:
+        req2 = urllib.request.Request(url, data=b"Test plain text from Render", headers={"Title": "Test Title"})
+        with urllib.request.urlopen(req2, timeout=5) as r2:
+            results["plain_topic"] = {"status": r2.status, "body": r2.read().decode()}
+    except Exception as e2:
+        results["plain_topic"] = {"error": str(e2)}
+
+    # Test 3: Using requests library
+    try:
+        import requests
+        r3 = requests.post(url, data="Requests test".encode('utf-8'), timeout=5)
+        results["requests_lib"] = {"status": r3.status_code, "body": r3.text}
+    except Exception as e3:
+        results["requests_lib"] = {"error": str(e3)}
+        
+    return results
 
 @app.post("/api/scan")
 def api_scan():
