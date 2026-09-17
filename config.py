@@ -82,43 +82,29 @@ def get_market_status():
     else:
         return True, "OPEN (Trading Active: 09:15 AM - 03:30 PM IST)"
 
-# Watchlist: High Liquidity Nifty Large/Midcap Stocks
+# Watchlist: 50 High-Liquidity Nifty Large/Midcap Stocks
 WATCHLIST = [
-    "RELIANCE.NS",
-    "TCS.NS",
-    "HDFCBANK.NS",
-    "ICICIBANK.NS",
-    "INFY.NS",
-    "ITC.NS",
-    "LT.NS",
-    "SBIN.NS",
-    "BHARTIARTL.NS",
-    "KOTAKBANK.NS",
-    "AXISBANK.NS",
-    "WIPRO.NS",
-    "COALINDIA.NS",
-    "SUNPHARMA.NS",
-    "TITAN.NS",
-    "BAJFINANCE.NS",
-    "MARUTI.NS",
-    "ASIANPAINT.NS",
-    "TATASTEEL.NS",
-    "NTPC.NS",
-    "POWERGRID.NS",
-    "M&M.NS",
-    "HAL.NS",
-    "BEL.NS",
-    "VBL.NS",
-    "TRENT.NS"
+    # Core Largecaps
+    "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS", "INFY.NS",
+    "ITC.NS", "LT.NS", "SBIN.NS", "BHARTIARTL.NS", "KOTAKBANK.NS",
+    "AXISBANK.NS", "WIPRO.NS", "COALINDIA.NS", "SUNPHARMA.NS", "TITAN.NS",
+    "BAJFINANCE.NS", "MARUTI.NS", "ASIANPAINT.NS", "TATASTEEL.NS", "NTPC.NS",
+    "POWERGRID.NS", "M&M.NS", "HAL.NS", "BEL.NS", "VBL.NS", "TRENT.NS",
+    
+    # Expanded Top Nifty 50 High-Volume Stocks
+    "TATAMOTORS.NS", "BAJAJ-AUTO.NS", "HINDALCO.NS", "GRASIM.NS", "SIEMENS.NS",
+    "CUMMINSIND.NS", "TECHM.NS", "HCLTECH.NS", "EICHERMOT.NS", "DRREDDY.NS",
+    "CIPLA.NS", "APOLLOHOSP.NS", "JSWSTEEL.NS", "HINDUNILVR.NS", "NESTLEIND.NS",
+    "BRITANNIA.NS", "ADANIENT.NS", "ADANIPORTS.NS", "BPCL.NS", "ONGC.NS",
+    "DIVISLAB.NS", "HEROMOTOCO.NS", "INDUSINDBK.NS", "SHREECEM.NS"
 ]
 
 # Database Path
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trades.db")
+BACKUP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trades_backup.json")
 
-# Telegram Alerts Configuration (Optional)
-TELEGRAM_ENABLED = False
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+# ntfy.sh Mobile Push Notifications Configuration
+NTFY_TOPIC = os.getenv("NTFY_TOPIC", "sr_trading_madhav")
 
 # Angel One SmartAPI Credentials (For Live Trading after 2 months paper trading)
 ANGEL_API_KEY = os.getenv("ANGEL_API_KEY", "")
