@@ -278,6 +278,19 @@ def api_megabull():
     except Exception as e:
         return {"enabled": True, "connected": False, "error": str(e)}
 
+@app.get("/api/test_ntfy_send")
+def api_test_ntfy_send():
+    from ntfy_notifier import send_ntfy
+    import traceback
+    try:
+        ok = send_ntfy("🔔 TEST FROM RENDER CLOUD", "Madhav bhai, aa message Render Cloud parthi live aavyo che!", priority="high")
+        add_log(f"Render test ntfy result: {ok}")
+        return {"success": ok, "topic": getattr(config, "NTFY_TOPIC", None)}
+    except Exception as e:
+        err = traceback.format_exc()
+        add_log(f"Render test ntfy error: {e}")
+        return {"success": False, "error": str(e), "trace": err}
+
 @app.post("/api/scan")
 def api_scan():
     return perform_full_scan()
