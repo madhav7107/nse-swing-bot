@@ -1,6 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 import config
 from trade_logger import (
     init_db, get_account_balance, get_open_trades, get_closed_trades,
@@ -24,7 +24,7 @@ AUTO_PILOT_ACTIVE = True
 LAST_AUTO_SCAN = "Not Scanned Yet"
 ACTIVITY_LOGS = [
     f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Bot initialized in PAPER TRADING mode.",
-    f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Monitoring 26 High Liquidity NSE Watchlist stocks."
+    f"[{datetime.datetime.now().strftime('%H:%M:%S')}] Monitoring 50 High Liquidity NSE Watchlist stocks."
 ]
 RADAR_DATA = []
 INDEX_CACHE = {}
@@ -72,7 +72,7 @@ def get_live_indices():
 
 def perform_full_scan():
     global LAST_AUTO_SCAN, RADAR_DATA
-    add_log("Starting automated market analysis across all 26 watchlist stocks...")
+    add_log(f"Starting automated market analysis across all {len(config.WATCHLIST)} watchlist stocks...")
     
     # 1. First monitor active positions
     monitor_and_manage_positions()
@@ -264,6 +264,37 @@ def api_reset():
     add_log("Paper Trading Account reset back to Rs. 100,000.")
     return {"status": "success", "message": "Paper portfolio successfully reset to Rs. 100,000"}
 
+@app.get("/api/export_trades")
+def api_export_trades():
+    import csv
+    import io
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM trades ORDER BY id DESC")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Trade ID", "Symbol", "Direction", "Entry Date", "Entry Price",
+        "Quantity", "Stop Loss", "Target Price", "Status", "Exit Date",
+        "Exit Price", "P&L", "P&L %", "Exit Reason", "Notes"
+    ])
+    for r in rows:
+        writer.writerow([
+            r["id"], r["symbol"], r["direction"], r["entry_date"], r["entry_price"],
+            r["quantity"], r["stop_loss"], r["target_price"], r["status"],
+            r["exit_date"] or "", r["exit_price"] or "", r["pnl"] or "",
+            r["pnl_pct"] or "", r["exit_reason"] or "", r["notes"] or ""
+        ])
+    
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=sr_trading_journal.csv"}
+    )
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     html = """
@@ -435,11 +466,11 @@ def index():
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-satellite-dish text-teal-400"></i>
                         <div>
-                            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Live Watchlist Radar (26 Stocks Analyzed)</h2>
+                            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Live Watchlist Radar (50 Stocks Analyzed)</h2>
                             <p class="text-[11px] text-slate-400">Shows exactly what the bot sees for each stock (Trend, RSI, Demand Zones)</p>
                         </div>
                     </div>
-                    <span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-lg border border-slate-700" id="radarCount">26 Stocks</span>
+                    <span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-lg border border-slate-700" id="radarCount">50 Stocks</span>
                 </div>
 
                 <div class="overflow-x-auto max-h-80 overflow-y-auto">
@@ -472,7 +503,13 @@ def index():
                         <i class="fa-solid fa-book-bookmark text-blue-400"></i>
                         <h2 class="text-sm font-bold text-white uppercase tracking-wider">Completed Trades Journal</h2>
                     </div>
-                    <span class="text-xs text-slate-400" id="historyBadge">0 Completed</span>
+                    <div class="flex items-center gap-3">
+                        <a href="/api/export_trades" download="sr_trading_journal.csv" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-file-arrow-down text-emerald-400"></i>
+                            <span>Export CSV</span>
+                        </a>
+                        <span class="text-xs text-slate-400" id="historyBadge">0 Completed</span>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto">
