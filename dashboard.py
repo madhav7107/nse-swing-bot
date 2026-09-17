@@ -8,6 +8,7 @@ from trade_logger import (
 )
 from data_engine import get_latest_price, get_stock_data
 from strategy_zone_bounce import analyze_zone_bounce_signal
+from strategy_breakout import analyze_breakout_signal
 from paper_broker import execute_paper_buy, monitor_and_manage_positions
 
 import threading
@@ -88,76 +89,79 @@ def perform_full_scan():
         radar_list = []
         
         for symbol in config.WATCHLIST:
-        df = get_stock_data(symbol, period="1y", interval="1d")
-        if df is None:
+            df = get_stock_data(symbol, period="1y", interval="1d")
+            if df is None:
+                radar_list.append({
+                    "symbol": symbol.replace(".NS", ""),
+                    "ltp": 0.0,
+                    "rsi": 0.0,
+                    "trend": "DATA_ERROR",
+                    "status": "No Market Data",
+                    "color": "slate"
+                })
+                continue
+                
+            last = df.iloc[-1]
+            close = round(float(last["Close"]), 2)
+            rsi = round(float(last["RSI"]), 1)
+            ema20 = round(float(last["EMA_20"]), 2)
+            ema50 = round(float(last["EMA_50"]), 2)
+            ema200 = round(float(last["EMA_200"]), 2)
+            
+            ema9 = round(float(last["EMA_9"]), 2) if "EMA_9" in last else close
+            ema21 = round(float(last["EMA_21"]), 2) if "EMA_21" in last else ema20
+            macd = round(float(last["MACD"]), 2) if "MACD" in last else 0.0
+            macd_signal = round(float(last["MACD_Signal"]), 2) if "MACD_Signal" in last else 0.0
+            supertrend_bullish = bool(last["Supertrend_Bullish"]) if "Supertrend_Bullish" in last else True
+            
+            setup = analyze_zone_bounce_signal(df, symbol)
+            if not setup:
+                setup = analyze_breakout_signal(df, symbol)
+            
+            is_uptrend = close > ema200
+            near_zone = (abs(close - ema20) / ema20 <= 0.025) or (abs(close - ema50) / ema50 <= 0.025)
+            
+            if setup:
+                signals.append(setup)
+                success = execute_paper_buy(setup)
+                pattern_title = setup.get("pattern", "Institutional Setup")
+                status_text = f"{pattern_title.upper()} ({setup['confluence_score']}%)"
+                color = "emerald"
+                if success:
+                    executed.append(symbol)
+                    add_log(f"🚀 BUY ORDER: {symbol.replace('.NS','')} [{pattern_title} - {setup['confluence_score']}%] at Rs. {setup['entry_price']} | SL: Rs. {setup['stop_loss']} | Tgt: Rs. {setup['target_price']}")
+            elif is_uptrend and near_zone:
+                status_text = "Demand Zone (Watching Reversal)"
+                color = "amber"
+                add_log(f"👀 {symbol.replace('.NS','')}: In Demand Zone (LTP: Rs. {close}, RSI: {rsi}).")
+            elif is_uptrend and (ema9 > ema21) and supertrend_bullish:
+                status_text = "Strong Uptrend (9/21 EMA + Supertrend)"
+                color = "blue"
+            elif is_uptrend:
+                status_text = "Uptrend (Pullback Phase)"
+                color = "blue"
+            else:
+                status_text = "Below 200 EMA (Avoid)"
+                color = "slate"
+                
             radar_list.append({
                 "symbol": symbol.replace(".NS", ""),
-                "ltp": 0.0,
-                "rsi": 0.0,
-                "trend": "DATA_ERROR",
-                "status": "No Market Data",
-                "color": "slate"
+                "ltp": close,
+                "score": setup['confluence_score'] if setup else (60 if (is_uptrend and near_zone) else (50 if is_uptrend else 20)),
+                "ema9": ema9,
+                "ema21": ema21,
+                "ema20": ema20,
+                "ema50": ema50,
+                "ema200": ema200,
+                "rsi": rsi,
+                "ema_cross": "BULLISH" if ema9 > ema21 else "BEARISH",
+                "macd_bullish": macd > macd_signal,
+                "supertrend": "BULLISH" if supertrend_bullish else "BEARISH",
+                "trend": "UPTREND" if is_uptrend else "DOWNTREND",
+                "status": status_text,
+                "color": color
             })
-            continue
             
-        last = df.iloc[-1]
-        close = round(float(last["Close"]), 2)
-        rsi = round(float(last["RSI"]), 1)
-        ema20 = round(float(last["EMA_20"]), 2)
-        ema50 = round(float(last["EMA_50"]), 2)
-        ema200 = round(float(last["EMA_200"]), 2)
-        
-        ema9 = round(float(last["EMA_9"]), 2) if "EMA_9" in last else close
-        ema21 = round(float(last["EMA_21"]), 2) if "EMA_21" in last else ema20
-        macd = round(float(last["MACD"]), 2) if "MACD" in last else 0.0
-        macd_signal = round(float(last["MACD_Signal"]), 2) if "MACD_Signal" in last else 0.0
-        supertrend_bullish = bool(last["Supertrend_Bullish"]) if "Supertrend_Bullish" in last else True
-        
-        setup = analyze_zone_bounce_signal(df, symbol)
-        
-        is_uptrend = close > ema200
-        near_zone = (abs(close - ema20) / ema20 <= 0.025) or (abs(close - ema50) / ema50 <= 0.025)
-        
-        if setup:
-            signals.append(setup)
-            success = execute_paper_buy(setup)
-            status_text = f"INSTITUTIONAL BUY ({setup['confluence_score']}%)"
-            color = "emerald"
-            if success:
-                executed.append(symbol)
-                add_log(f"🚀 BUY ORDER: {symbol.replace('.NS','')} [Score: {setup['confluence_score']}%] at Rs. {setup['entry_price']} | SL: Rs. {setup['stop_loss']} | Tgt: Rs. {setup['target_price']}")
-        elif is_uptrend and near_zone:
-            status_text = "Demand Zone (Watching Reversal)"
-            color = "amber"
-            add_log(f"👀 {symbol.replace('.NS','')}: In Demand Zone (LTP: Rs. {close}, RSI: {rsi}).")
-        elif is_uptrend and (ema9 > ema21) and supertrend_bullish:
-            status_text = "Strong Uptrend (9/21 EMA + Supertrend)"
-            color = "blue"
-        elif is_uptrend:
-            status_text = "Uptrend (Pullback Phase)"
-            color = "blue"
-        else:
-            status_text = "Below 200 EMA (Avoid)"
-            color = "slate"
-            
-        radar_list.append({
-            "symbol": symbol.replace(".NS", ""),
-            "ltp": close,
-            "score": setup['confluence_score'] if setup else (60 if (is_uptrend and near_zone) else (50 if is_uptrend else 20)),
-            "ema9": ema9,
-            "ema21": ema21,
-            "ema20": ema20,
-            "ema50": ema50,
-            "ema200": ema200,
-            "rsi": rsi,
-            "ema_cross": "BULLISH" if ema9 > ema21 else "BEARISH",
-            "macd_bullish": macd > macd_signal,
-            "supertrend": "BULLISH" if supertrend_bullish else "BEARISH",
-            "trend": "UPTREND" if is_uptrend else "DOWNTREND",
-            "status": status_text,
-            "color": color
-        })
-        
         RADAR_DATA = radar_list
         LAST_AUTO_SCAN = config.get_ist_now().strftime("%Y-%m-%d %H:%M:%S IST")
         add_log(f"Scan complete: Scanned {len(config.WATCHLIST)} stocks. Found {len(signals)} setups. Executed {len(executed)} orders.")
