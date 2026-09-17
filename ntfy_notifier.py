@@ -1,14 +1,26 @@
+import json
 import urllib.request
 import config
 
 def send_ntfy(title: str, message: str, priority: str = "default", tags: list = None):
     try:
         topic = getattr(config, "NTFY_TOPIC", "sr_trading_madhav")
-        url = f"https://ntfy.sh/{topic}"
-        headers = {"Title": title.encode("utf-8"), "Priority": priority}
-        if tags:
-            headers["Tags"] = ",".join(tags)
-        req = urllib.request.Request(url, data=message.encode("utf-8"), headers=headers)
+        url = "https://ntfy.sh"
+        priority_map = {"min": 1, "low": 2, "default": 3, "high": 4, "urgent": 5}
+        p_val = priority_map.get(priority, 4 if priority == "high" else 3)
+        payload = {
+            "topic": topic,
+            "title": title,
+            "message": message,
+            "priority": p_val,
+            "tags": tags or []
+        }
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"},
+            method="POST"
+        )
         with urllib.request.urlopen(req, timeout=10) as resp:
             return resp.status == 200
     except Exception as e:
