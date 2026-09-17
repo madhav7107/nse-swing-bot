@@ -70,18 +70,24 @@ def get_live_indices():
         print(f"[Indices Fetch Error] {e}")
         return INDEX_CACHE.get("data", [])
 
+SCAN_LOCK = threading.Lock()
+
 def perform_full_scan():
     global LAST_AUTO_SCAN, RADAR_DATA
-    add_log(f"Starting automated market analysis across all {len(config.WATCHLIST)} watchlist stocks...")
-    
-    # 1. First monitor active positions
-    monitor_and_manage_positions()
-    
-    signals = []
-    executed = []
-    radar_list = []
-    
-    for symbol in config.WATCHLIST:
+    if not SCAN_LOCK.acquire(blocking=False):
+        print("[AutoTrader] Scan already in progress, skipping concurrent run.")
+        return {"signals_found": 0, "executed_symbols": []}
+    try:
+        add_log(f"Starting automated market analysis across all {len(config.WATCHLIST)} watchlist stocks...")
+        
+        # 1. First monitor active positions
+        monitor_and_manage_positions()
+        
+        signals = []
+        executed = []
+        radar_list = []
+        
+        for symbol in config.WATCHLIST:
         df = get_stock_data(symbol, period="1y", interval="1d")
         if df is None:
             radar_list.append({
@@ -152,15 +158,17 @@ def perform_full_scan():
             "color": color
         })
         
-    RADAR_DATA = radar_list
-    LAST_AUTO_SCAN = config.get_ist_now().strftime("%Y-%m-%d %H:%M:%S IST")
-    add_log(f"Scan complete: Scanned {len(config.WATCHLIST)} stocks. Found {len(signals)} setups. Executed {len(executed)} orders.")
-    return {
-        "status": "success",
-        "scanned_count": len(config.WATCHLIST),
-        "signals_found": len(signals),
-        "executed_symbols": executed
-    }
+        RADAR_DATA = radar_list
+        LAST_AUTO_SCAN = config.get_ist_now().strftime("%Y-%m-%d %H:%M:%S IST")
+        add_log(f"Scan complete: Scanned {len(config.WATCHLIST)} stocks. Found {len(signals)} setups. Executed {len(executed)} orders.")
+        return {
+            "status": "success",
+            "scanned_count": len(config.WATCHLIST),
+            "signals_found": len(signals),
+            "executed_symbols": executed
+        }
+    finally:
+        SCAN_LOCK.release()
 
 def auto_trader_daemon():
     print("[AutoTrader] Background 100% Hands-Free Auto-Trading Loop Active.")
