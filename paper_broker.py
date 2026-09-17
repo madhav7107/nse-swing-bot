@@ -24,12 +24,24 @@ def execute_paper_buy(setup: Dict) -> bool:
     stop_loss = setup["stop_loss"]
     target_price = setup["target_price"]
     
-    # Check if already holding this symbol
+    # Check if already holding this symbol in local DB or MegaBull
     open_trades = get_open_trades()
     for t in open_trades:
         if t["symbol"] == symbol:
             print(f"Already holding an active position in {symbol}. Skipping duplicate entry.")
             return False
+            
+    if getattr(config, "MEGABULL_ENABLED", False):
+        try:
+            from megabull_broker import get_holdings
+            mb_holdings = get_holdings()
+            clean_sym = symbol.replace(".NS", "").replace(".BO", "").strip()
+            for h in mb_holdings:
+                if h.get("instrumentName") == clean_sym and h.get("qty", 0) > 0:
+                    print(f"Already holding {clean_sym} in MegaBull ({h.get('qty')} shares). Skipping duplicate entry.")
+                    return False
+        except Exception as mb_chk_err:
+            print(f"[MegaBull Holding Check Warning] {mb_chk_err}")
             
     # Calculate position size
     approved, qty, reason = calculate_position_size(entry_price, stop_loss)
