@@ -204,8 +204,16 @@ threading.Thread(target=auto_trader_daemon, daemon=True).start()
 
 @app.get("/api/stats")
 def api_stats():
-    stats = get_performance_stats()
     open_trades = get_open_trades()
+    if not open_trades and getattr(config, "MEGABULL_ENABLED", False):
+        try:
+            from megabull_broker import sync_megabull_to_db
+            sync_megabull_to_db()
+            open_trades = get_open_trades()
+        except Exception:
+            pass
+            
+    stats = get_performance_stats()
     
     unrealized_pnl = 0.0
     for t in open_trades:
@@ -229,6 +237,13 @@ def api_indices():
 @app.get("/api/positions")
 def api_positions():
     trades = get_open_trades()
+    if not trades and getattr(config, "MEGABULL_ENABLED", False):
+        try:
+            from megabull_broker import sync_megabull_to_db
+            sync_megabull_to_db()
+            trades = get_open_trades()
+        except Exception:
+            pass
     enriched = []
     for t in trades:
         t_dict = dict(t)
