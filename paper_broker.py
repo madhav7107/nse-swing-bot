@@ -81,10 +81,19 @@ def execute_paper_buy(setup: Dict) -> bool:
 def monitor_and_manage_positions():
     """
     Loops through all active open positions:
+    - Automatically syncs latest positions from MegaBull
     - Checks whether Stop-Loss or Target was triggered during today's price action
     - Dynamically trails Stop-Loss to Breakeven (Cost) once 1R profit is achieved
     - Trails further using 20 EMA to maximize profits
     """
+    # 2-Way Sync with MegaBull before monitoring
+    if getattr(config, "MEGABULL_ENABLED", False):
+        try:
+            from megabull_broker import sync_megabull_to_db
+            sync_megabull_to_db()
+        except Exception as sync_err:
+            print(f"[MegaBull Pre-Monitor Sync Error] {sync_err}")
+            
     open_trades = get_open_trades()
     if not open_trades:
         print("No open swing positions currently to monitor.")
