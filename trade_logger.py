@@ -73,6 +73,13 @@ def init_db():
     conn.commit()
     conn.close()
     restore_from_json()
+    
+    if getattr(config, "MEGABULL_ENABLED", False):
+        try:
+            from megabull_broker import sync_megabull_to_db
+            sync_megabull_to_db()
+        except Exception as err:
+            print(f"[Init MegaBull Sync Notice] {err}")
 
 def get_account_balance() -> float:
     conn = get_connection()
