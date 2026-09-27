@@ -103,7 +103,7 @@ def update_account_balance(new_balance: float):
     conn.close()
     backup_to_json()
 
-def log_trade_entry(symbol: str, entry_price: float, quantity: int, stop_loss: float, target_price: float, notes: str = "") -> int:
+def log_trade_entry(symbol: str, entry_price: float, quantity: int, stop_loss: float, target_price: float, notes: str = "", strategy: str = "ZONE_BOUNCE") -> int:
     conn = get_connection()
     cursor = conn.cursor()
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -111,8 +111,8 @@ def log_trade_entry(symbol: str, entry_price: float, quantity: int, stop_loss: f
         INSERT INTO trades (
             symbol, direction, entry_date, entry_price, quantity,
             stop_loss, original_sl, target_price, status, strategy, notes
-        ) VALUES (?, 'BUY', ?, ?, ?, ?, ?, ?, 'OPEN', 'ZONE_BOUNCE', ?)
-    """, (symbol, now, entry_price, quantity, stop_loss, stop_loss, target_price, notes))
+        ) VALUES (?, 'BUY', ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?)
+    """, (symbol, now, entry_price, quantity, stop_loss, stop_loss, target_price, strategy, notes))
     trade_id = cursor.lastrowid
     conn.commit()
     conn.close()
