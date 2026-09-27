@@ -54,7 +54,17 @@ def send_ntfy(title: str, message: str, priority: str = "default", tags: list = 
 
 def notify_buy(trade: dict):
     sym = trade["symbol"].replace(".NS", "")
-    title = f"🚀 SR-TRADING: BUY {sym}"
+    t_type = "INTRADAY" if ("INTRADAY" in str(trade.get("strategy", "")).upper() or "INTRADAY" in str(trade.get("pattern", "")).upper()) else "SWING"
+    
+    if t_type == "INTRADAY":
+        title = f"⚡ INTRADAY BUY: {sym}"
+        tags = ["zap", "clock3"]
+        action_text = "BUY [INTRADAY] (Auto Exit: 03:15 PM)"
+    else:
+        title = f"🚀 SWING BUY: {sym}"
+        tags = ["chart_with_upwards_trend", "rocket"]
+        action_text = "BUY [SWING HOLD] (Multi-Day Hold)"
+        
     p_name = trade.get("pattern", "Zone Bounce")
     score = trade.get("confluence_score", 75)
     entry = float(trade["entry_price"])
@@ -69,8 +79,9 @@ def notify_buy(trade: dict):
     rr = round(reward / risk, 2)
     
     msg = (
+        f"TYPE: [{t_type} TRADE]\n"
         f"Stock: {sym}\n"
-        f"Action: BUY (Cash CNC)\n"
+        f"Action: {action_text}\n"
         f"Qty: {qty} shares\n"
         f"Entry: Rs. {entry}\n"
         f"SL: Rs. {sl} ({sl_pct}%)\n"
@@ -78,7 +89,7 @@ def notify_buy(trade: dict):
         f"Risk:Reward: 1:{rr}\n"
         f"Setup: {p_name} [{score}%]"
     )
-    return send_ntfy(title, msg, priority="high", tags=["chart_with_upwards_trend", "rocket"])
+    return send_ntfy(title, msg, priority="high", tags=tags)
 
 def notify_trailing_sl(symbol: str, old_sl: float, new_sl: float, ltp: float):
     sym = symbol.replace(".NS", "")
