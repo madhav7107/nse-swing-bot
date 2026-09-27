@@ -21,10 +21,14 @@ def get_stock_data(symbol: str, period: str = "1y", interval: str = "1d") -> Opt
             return None
         
         df = df.reset_index()
-        if "Date" in df.columns:
-            df["Date"] = pd.to_datetime(df["Date"]).dt.tz_localize(None)
+        date_col = "Datetime" if "Datetime" in df.columns else "Date"
+        if date_col in df.columns:
+            df["Date"] = pd.to_datetime(df[date_col]).dt.tz_localize(None)
         
         df = df[["Date", "Open", "High", "Low", "Close", "Volume"]]
+        min_required = 20 if "m" in interval or "h" in interval else 50
+        if len(df) < min_required:
+            return None
         df = calculate_indicators(df)
         return df
     except Exception as e:
