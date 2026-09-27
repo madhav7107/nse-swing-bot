@@ -9,6 +9,7 @@ from trade_logger import (
 from data_engine import get_latest_price, get_stock_data
 from strategy_zone_bounce import analyze_zone_bounce_signal
 from strategy_breakout import analyze_breakout_signal
+from strategy_intraday_vwap import analyze_intraday_vwap_signal
 from paper_broker import execute_paper_buy, monitor_and_manage_positions
 
 import threading
@@ -117,6 +118,18 @@ def perform_full_scan():
             setup = analyze_zone_bounce_signal(df, symbol)
             if not setup:
                 setup = analyze_breakout_signal(df, symbol)
+                
+            # If no swing setup, check for intraday VWAP momentum if enabled during trading hours
+            if not setup and getattr(config, "INTRADAY_TRADING_ENABLED", True):
+                now_ist = config.get_ist_now()
+                # Check intraday window: 09:30 AM to 01:30 PM
+                if (now_ist.hour == 9 and now_ist.minute >= 30) or (10 <= now_ist.hour <= 13):
+                    try:
+                        df_5m = get_stock_data(symbol, period="1d", interval="5m")
+                        if df_5m is not None:
+                            setup = analyze_intraday_vwap_signal(df_5m, symbol)
+                    except Exception:
+                        pass
             
             is_uptrend = close > ema200
             near_zone = (abs(close - ema20) / ema20 <= 0.025) or (abs(close - ema50) / ema50 <= 0.025)
