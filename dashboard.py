@@ -142,7 +142,9 @@ def perform_full_scan():
                 color = "emerald"
                 if success:
                     executed.append(symbol)
-                    add_log(f"🚀 BUY ORDER: {symbol.replace('.NS','')} [{pattern_title} - {setup['confluence_score']}%] at Rs. {setup['entry_price']} | SL: Rs. {setup['stop_loss']} | Tgt: Rs. {setup['target_price']}")
+                    action_word = "SHORT SELL" if setup.get("direction") == "SELL" else "BUY"
+                    icon = "🔻" if setup.get("direction") == "SELL" else "🚀"
+                    add_log(f"{icon} {action_word} ORDER: {symbol.replace('.NS','')} [{pattern_title} - {setup['confluence_score']}%] at Rs. {setup['entry_price']} | SL: Rs. {setup['stop_loss']} | Tgt: Rs. {setup['target_price']}")
             elif is_uptrend and near_zone:
                 status_text = "Demand Zone (Watching Reversal)"
                 color = "amber"
