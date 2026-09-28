@@ -8,7 +8,8 @@ from risk_manager import calculate_position_size
 from data_engine import get_stock_data, get_latest_price
 from ntfy_notifier import notify_buy, notify_target_hit, notify_stop_loss_hit, notify_trailing_sl
 
-def execute_paper_buy(setup: Dict) -> bool:
+def execute_paper_trade(setup: Dict) -> bool:
+    execute_paper_buy = execute_paper_trade
     """
     Simulates buying a stock in Paper Trading mode.
     Deducts capital, logs the trade, and creates a risk-managed position.
@@ -61,7 +62,8 @@ def execute_paper_buy(setup: Dict) -> bool:
     if getattr(config, "MEGABULL_ENABLED", False):
         try:
             from megabull_broker import place_order as mb_place_order
-            mb_res = mb_place_order(symbol, qty, "BUY", entry_price)
+            order_dir = setup.get("direction", "BUY")
+            mb_res = mb_place_order(symbol, qty, order_dir, entry_price)
             if mb_res and "id" in mb_res:
                 print(f"[MegaBull] Successfully synced BUY order ID: {mb_res['id']} to MegaBull account!")
         except Exception as mb_err:
@@ -126,18 +128,22 @@ def monitor_and_manage_positions():
         pos_pnl = (today_close - entry_price) * qty
         unrealized_pnl += pos_pnl
         
+        direction = trade.get("direction", "BUY")
+        
         # 1. Check Stop Loss Hit
-        if today_low <= stop_loss:
+        sl_hit = (today_high >= stop_loss) if direction == "SELL" else (today_low <= stop_loss)
+        if sl_hit:
             exit_price = stop_loss
-            pnl = (exit_price - entry_price) * qty
-            pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0
+            pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
+            pnl_pct = ((entry_price - exit_price) / entry_price) * 100.0 if direction == "SELL" else ((exit_price - entry_price) / entry_price) * 100.0
             log_trade_exit(trade_id, exit_price, "Stop Loss Triggered")
             
-            # Sync exit to MegaBull app
+            # Sync exit to MegaBull app (cover short with BUY, or sell long with SELL)
+            exit_side = "BUY" if direction == "SELL" else "SELL"
             if getattr(config, "MEGABULL_ENABLED", False):
                 try:
                     from megabull_broker import place_order as mb_place_order
-                    mb_place_order(symbol, qty, "SELL", exit_price)
+                    mb_place_order(symbol, qty, exit_side, exit_price)
                 except Exception as mb_err:
                     print(f"[MegaBull SL Exit Sync Error] {mb_err}")
 
@@ -146,17 +152,18 @@ def monitor_and_manage_positions():
             continue
             
         # 2. Check Target Hit
-        if today_high >= target_price:
+        tgt_hit = (today_low <= target_price) if direction == "SELL" else (today_high >= target_price)
+        if tgt_hit:
             exit_price = target_price
-            pnl = (exit_price - entry_price) * qty
-            pnl_pct = ((exit_price - entry_price) / entry_price) * 100.0
+            pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
+            pnl_pct = ((entry_price - exit_price) / entry_price) * 100.0 if direction == "SELL" else ((exit_price - entry_price) / entry_price) * 100.0
             log_trade_exit(trade_id, exit_price, "Target Reached")
             
-            # Sync exit to MegaBull app
+            exit_side = "BUY" if direction == "SELL" else "SELL"
             if getattr(config, "MEGABULL_ENABLED", False):
                 try:
                     from megabull_broker import place_order as mb_place_order
-                    mb_place_order(symbol, qty, "SELL", exit_price)
+                    mb_place_order(symbol, qty, exit_side, exit_price)
                 except Exception as mb_err:
                     print(f"[MegaBull Target Exit Sync Error] {mb_err}")
 
