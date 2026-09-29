@@ -39,7 +39,9 @@ def execute_paper_trade(setup: Dict) -> bool:
             print(f"[MegaBull Holding Check Warning] {mb_chk_err}")
             
     # Calculate position size
-    approved, qty, reason = calculate_position_size(entry_price, stop_loss)
+    direction = setup.get("direction", "BUY")
+    trade_type = setup.get("trade_type", "SWING")
+    approved, qty, reason = calculate_position_size(entry_price, stop_loss, trade_type=trade_type, direction=direction)
     if not approved:
         print(f"Order rejected for {symbol}: {reason}")
         return False
