@@ -116,7 +116,7 @@ def monitor_and_manage_positions():
         invested = entry_price * qty
         total_invested += invested
         
-        df = get_stock_data(symbol, period="5d", interval="1d")
+        df = get_stock_data(symbol, period="1y", interval="1d")
         if df is None or df.empty:
             continue
             
