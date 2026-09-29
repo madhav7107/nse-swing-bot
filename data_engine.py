@@ -17,7 +17,12 @@ def get_stock_data(symbol: str, period: str = "1y", interval: str = "1d") -> Opt
         ticker = yf.Ticker(formatted_symbol)
         df = ticker.history(period=period, interval=interval)
         
-        if df.empty or len(df) < 50:
+        if df.empty:
+            return None
+            
+        # Determine minimum required bars based on interval/period
+        min_required = 2 if period in ("2d", "5d") else (20 if ("m" in interval or "h" in interval) else 50)
+        if len(df) < min_required:
             return None
         
         df = df.reset_index()
@@ -26,10 +31,8 @@ def get_stock_data(symbol: str, period: str = "1y", interval: str = "1d") -> Opt
             df["Date"] = pd.to_datetime(df[date_col]).dt.tz_localize(None)
         
         df = df[["Date", "Open", "High", "Low", "Close", "Volume"]]
-        min_required = 20 if "m" in interval or "h" in interval else 50
-        if len(df) < min_required:
-            return None
-        df = calculate_indicators(df)
+        if len(df) >= 50:
+            df = calculate_indicators(df)
         return df
     except Exception as e:
         print(f"Error fetching data for {symbol}: {e}")
