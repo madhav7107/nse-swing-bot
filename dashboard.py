@@ -122,8 +122,8 @@ def perform_full_scan():
             # If no swing setup, check for intraday VWAP momentum if enabled during trading hours
             if not setup and getattr(config, "INTRADAY_TRADING_ENABLED", True):
                 now_ist = config.get_ist_now()
-                # Check intraday window: 09:30 AM to 01:30 PM
-                if (now_ist.hour == 9 and now_ist.minute >= 30) or (10 <= now_ist.hour <= 13):
+                # Check extended intraday window: 09:20 AM to 02:45 PM
+                if (now_ist.hour == 9 and now_ist.minute >= 20) or (10 <= now_ist.hour <= 14 and now_ist.minute <= 45):
                     try:
                         df_5m = get_stock_data(symbol, period="1d", interval="5m")
                         if df_5m is not None:
