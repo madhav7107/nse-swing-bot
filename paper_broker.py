@@ -8,8 +8,10 @@ from risk_manager import calculate_position_size
 from data_engine import get_stock_data, get_latest_price
 from ntfy_notifier import notify_buy, notify_target_hit, notify_stop_loss_hit, notify_trailing_sl
 
+def execute_paper_buy(setup: Dict) -> bool:
+    return execute_paper_trade(setup)
+
 def execute_paper_trade(setup: Dict) -> bool:
-    execute_paper_buy = execute_paper_trade
     """
     Simulates buying a stock in Paper Trading mode.
     Deducts capital, logs the trade, and creates a risk-managed position.
