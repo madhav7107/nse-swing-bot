@@ -217,6 +217,10 @@ def auto_trader_daemon():
 
 threading.Thread(target=auto_trader_daemon, daemon=True).start()
 
+@app.get("/api/version")
+def api_version():
+    return {"deployed": True, "version": "v2.2-practical-2way-intraday", "intraday_window": "09:20 - 14:45 IST"}
+
 @app.get("/api/stats")
 def api_stats():
     open_trades = get_open_trades()
