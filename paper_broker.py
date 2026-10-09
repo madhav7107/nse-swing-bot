@@ -155,13 +155,18 @@ def monitor_and_manage_positions():
             print(f"[STOP-LOSS HIT] on {symbol} at Rs. {exit_price} (P&L: Rs. {round(pnl, 2)})")
             continue
             
-        # 2. Check Target Hit
+        # 2. Check Target Hit OR Smart Profit Lock (If profit >= Rs. 1,000 or gain >= 4%)
+        cur_gain_pct = ((today_close - entry_price) / entry_price) * 100.0 if direction == "BUY" else ((entry_price - today_close) / entry_price) * 100.0
+        cur_profit_rs = (today_close - entry_price) * qty if direction == "BUY" else (entry_price - today_close) * qty
         tgt_hit = (today_low <= target_price) if direction == "SELL" else (today_high >= target_price)
-        if tgt_hit:
-            exit_price = target_price
-            pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
-            pnl_pct = ((entry_price - exit_price) / entry_price) * 100.0 if direction == "SELL" else ((exit_price - entry_price) / entry_price) * 100.0
-            log_trade_exit(trade_id, exit_price, "Target Reached")
+        smart_profit_lock = (cur_profit_rs >= 1000.0 or cur_gain_pct >= 4.0)
+        
+        if tgt_hit or smart_profit_lock:
+            exit_price = today_close if smart_profit_lock and not tgt_hit else target_price
+            pnl = cur_profit_rs if smart_profit_lock and not tgt_hit else ((entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty)
+            pnl_pct = cur_gain_pct if smart_profit_lock and not tgt_hit else ((entry_price - exit_price) / entry_price * 100.0 if direction == "SELL" else (exit_price - entry_price) / entry_price * 100.0)
+            exit_msg = "Smart Profit Lock (+Rs. " + str(round(pnl, 2)) + ")" if smart_profit_lock and not tgt_hit else "Target Reached"
+            log_trade_exit(trade_id, exit_price, exit_msg)
             
             exit_side = "BUY" if direction == "SELL" else "SELL"
             if getattr(config, "MEGABULL_ENABLED", False):
