@@ -185,15 +185,16 @@ def monitor_and_manage_positions():
         now_ist = config.get_ist_now()
         if is_intraday and now_ist.hour >= 15 and now_ist.minute >= 15:
             exit_price = today_close
-            pnl = (exit_price - entry_price) * qty
+            pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
             log_trade_exit(trade_id, exit_price, "Intraday 3:15 PM Square-Off")
+            exit_side = "BUY" if direction == "SELL" else "SELL"
             if getattr(config, "MEGABULL_ENABLED", False):
                 try:
                     from megabull_broker import place_order as mb_place_order
-                    mb_place_order(symbol, qty, "SELL", exit_price)
+                    mb_place_order(symbol, qty, exit_side, exit_price)
                 except Exception as mb_err:
                     print(f"[MegaBull Intraday Square-Off Error] {mb_err}")
-            print(f"[INTRADAY SQUARE-OFF] {symbol} at Rs. {exit_price} (P&L: Rs. {round(pnl, 2)})")
+            print(f"[INTRADAY SQUARE-OFF] {symbol} ({direction}) at Rs. {exit_price} (P&L: Rs. {round(pnl, 2)})")
             continue
             
         # 3. Dynamic Trailing Stop Loss Management
