@@ -8,7 +8,7 @@ import os
 TRADING_MODE = os.getenv("TRADING_MODE", "PAPER")
 
 # Portfolio & Capital Settings
-INITIAL_CAPITAL = 100000.0  # ₹1,00,000 for Paper Trading
+INITIAL_CAPITAL = 500000.0  # ₹5,00,000 for MegaBull Paper Trading
 RISK_PER_TRADE_PCT = 1.5    # 1.5% max risk per trade (e.g. ₹1,500 on ₹1,00,000)
 MAX_CAPITAL_PER_TRADE_PCT = 25.0 # Max 25% of portfolio in a single stock
 MAX_OPEN_POSITIONS = 5      # Maximum 5 concurrent open swing trades (Strict Rule: 5 means 5)
