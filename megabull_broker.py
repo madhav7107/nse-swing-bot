@@ -162,13 +162,13 @@ def sync_megabull_to_db():
                 )
             conn.commit()
             
-        # 2. Sync holdings
+        # 2. Sync holdings (both LONG and SHORT)
         mb_holdings = get_holdings()
         mb_symbols = {}
         for h in mb_holdings:
             name = h.get("instrumentName")
             qty = int(h.get("qty", 0))
-            if name and qty > 0:
+            if name and qty != 0:
                 mb_symbols[name] = h
                 
         # Fetch current open trades in DB
@@ -179,29 +179,42 @@ def sync_megabull_to_db():
         # A. If holding exists in MegaBull but NOT in DB, insert it!
         for name, h in mb_symbols.items():
             sym = f"{name}.NS"
-            qty = int(h.get("qty", 0))
-            buy_price = float(h.get("avgBuyPrice", 0.0) or h.get("priceAvg", 0.0))
-            if buy_price <= 0:
+            raw_qty = int(h.get("qty", 0))
+            qty = abs(raw_qty)
+            is_short = raw_qty < 0 or h.get("type") == "SHORT"
+            direction = "SELL" if is_short else "BUY"
+            
+            price = float(h.get("avgSellPrice", 0.0) if is_short else h.get("avgBuyPrice", 0.0))
+            if price <= 0:
+                price = float(h.get("priceAvg", 0.0))
+            if price <= 0:
                 continue
                 
             if name not in db_symbols:
-                # Calculate initial SL (3.5% swing SL) & Target (1:2 RR = 7%)
-                sl = round(buy_price * 0.965, 2)
-                tgt = round(buy_price * 1.07, 2)
+                # Calculate SL & Target
+                if is_short:
+                    sl = round(price * 1.025, 2)
+                    tgt = round(price * 0.95, 2)
+                    strat = "INTRADAY"
+                else:
+                    sl = round(price * 0.965, 2)
+                    tgt = round(price * 1.07, 2)
+                    strat = "INSTITUTIONAL_SWING"
+                    
                 cursor.execute("""
                     INSERT INTO trades (
                         symbol, direction, entry_date, entry_price, quantity,
                         stop_loss, original_sl, target_price, status, strategy, notes
-                    ) VALUES (?, 'BUY', ?, ?, ?, ?, ?, ?, 'OPEN', 'INSTITUTIONAL_SWING', ?)
-                """, (sym, now, buy_price, qty, sl, sl, tgt, "Synced from MegaBull Live Portfolio"))
-                print(f"[MegaBull Sync] Inserted active holding: {sym} ({qty} shares @ Rs {buy_price})")
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?)
+                """, (sym, direction, now, price, qty, sl, sl, tgt, strat, f"Synced from MegaBull ({direction})"))
+                print(f"[MegaBull Sync] Inserted active {direction} holding: {sym} ({qty} shares @ Rs {price})")
             else:
                 # Update quantity if changed
                 existing = db_symbols[name]
-                if existing["quantity"] != qty or abs(existing["entry_price"] - buy_price) > 0.05:
+                if existing["quantity"] != qty or abs(existing["entry_price"] - price) > 0.05:
                     cursor.execute(
-                        "UPDATE trades SET quantity = ?, entry_price = ? WHERE id = ?",
-                        (qty, buy_price, existing["id"])
+                        "UPDATE trades SET quantity = ?, entry_price = ?, direction = ? WHERE id = ?",
+                        (qty, price, direction, existing["id"])
                     )
                     
         # B. If trade is OPEN in DB but NO LONGER in MegaBull, mark it as closed!
