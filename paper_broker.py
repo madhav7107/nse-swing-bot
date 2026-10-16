@@ -213,6 +213,33 @@ def monitor_and_manage_positions():
                     update_stop_loss(trade_id, new_sl, f"Trailed SL using 20 EMA (Rs. {new_sl})")
                     notify_trailing_sl(symbol, stop_loss, new_sl, today_close)
                     print(f"[TRAILING SL] {symbol}: Trailed Stop Loss to Rs. {new_sl} using 20 EMA")
+                    stop_loss = new_sl
+
+            # Step C: Smart Profit-Lock (Guarantees at least 70% profit once gain >= Rs. 1,000)
+            if pos_pnl >= 1000.0:
+                locked_gain = pos_pnl * 0.70
+                profit_lock_sl = round(entry_price + (locked_gain / qty), 2) if direction == "BUY" else round(entry_price - (locked_gain / qty), 2)
+                if (direction == "BUY" and profit_lock_sl > stop_loss) or (direction == "SELL" and profit_lock_sl < stop_loss):
+                    update_stop_loss(trade_id, profit_lock_sl, f"Smart Profit-Lock (+Rs. {round(locked_gain, 2)} locked)")
+                    notify_trailing_sl(symbol, stop_loss, profit_lock_sl, today_close)
+                    print(f"[PROFIT-LOCK] {symbol}: Gain Rs. {round(pos_pnl, 2)}. Moved SL to Rs. {profit_lock_sl} to lock profit!")
+                    stop_loss = profit_lock_sl
+
+        # Step D: Target Day (Wednesday, Oct 21) Full Cash Square-Off at 03:15 PM
+        now_ist = config.get_ist_now()
+        if now_ist.strftime("%Y-%m-%d") >= "2026-10-21" and now_ist.hour >= 15 and now_ist.minute >= 10:
+            exit_price = today_close
+            exit_side = "BUY" if direction == "SELL" else "SELL"
+            pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
+            log_trade_exit(trade_id, exit_price, "Wednesday Target Day Full Cash Conversion")
+            if getattr(config, "MEGABULL_ENABLED", False):
+                try:
+                    from megabull_broker import place_order as mb_place_order
+                    mb_place_order(symbol, qty, exit_side, exit_price)
+                except Exception as mb_err:
+                    print(f"[MegaBull Wednesday Full Cash Exit Error] {mb_err}")
+            notify_target_hit(trade, exit_price, pnl)
+            print(f"[WEDNESDAY TARGET DAY EXIT] {symbol} {exit_side} at Rs. {exit_price} (P&L: Rs. {round(pnl, 2)}) -> Converted to Free Cash!")
     
     # Save daily portfolio snapshot
     log_equity_snapshot(total_invested, unrealized_pnl, len(open_trades))
