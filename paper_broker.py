@@ -127,17 +127,14 @@ def monitor_and_manage_positions():
         today = df.iloc[-1]
         today_high = float(today["High"])
         today_low = float(today["Low"])
-        today_close = float(today["Close"])
-        
-        pos_pnl = (today_close - entry_price) * qty
+        current_price = get_latest_price(symbol) or today_close
+        pos_pnl = (current_price - entry_price) * qty if direction == "BUY" else (entry_price - current_price) * qty
         unrealized_pnl += pos_pnl
         
-        direction = trade.get("direction", "BUY")
-        
-        # 1. Check Stop Loss Hit
-        sl_hit = (today_high >= stop_loss) if direction == "SELL" else (today_low <= stop_loss)
+        # 1. Check Stop Loss Hit against live current market price
+        sl_hit = (current_price >= stop_loss) if direction == "SELL" else (current_price <= stop_loss)
         if sl_hit:
-            exit_price = stop_loss
+            exit_price = current_price
             pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
             pnl_pct = ((entry_price - exit_price) / entry_price) * 100.0 if direction == "SELL" else ((exit_price - entry_price) / entry_price) * 100.0
             log_trade_exit(trade_id, exit_price, "Stop Loss Triggered")
@@ -155,10 +152,10 @@ def monitor_and_manage_positions():
             print(f"[STOP-LOSS HIT] on {symbol} at Rs. {exit_price} (P&L: Rs. {round(pnl, 2)})")
             continue
             
-        # 2. Check Target Hit
-        tgt_hit = (today_low <= target_price) if direction == "SELL" else (today_high >= target_price)
+        # 2. Check Target Hit against live current market price
+        tgt_hit = (current_price <= target_price) if direction == "SELL" else (current_price >= target_price)
         if tgt_hit:
-            exit_price = target_price
+            exit_price = current_price
             pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
             pnl_pct = ((entry_price - exit_price) / entry_price) * 100.0 if direction == "SELL" else ((exit_price - entry_price) / entry_price) * 100.0
             log_trade_exit(trade_id, exit_price, "Target Reached")
