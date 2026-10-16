@@ -21,35 +21,38 @@ def calculate_position_size(entry_price: float, stop_loss: float, trade_type: st
             return False, 0, f"Max swing open positions reached ({len(swing_open)}/{config.MAX_OPEN_POSITIONS})"
     
     current_cash = get_account_balance()
-    if current_cash <= 1000:
-        return False, 0, "Insufficient cash balance"
+    min_cash_reserve = getattr(config, "CASH_RESERVE_MIN", 150000.0)
+    available_investable_cash = max(0.0, current_cash - min_cash_reserve)
+    if available_investable_cash < 5000:
+        return False, 0, f"Cash reserve protected: minimum ₹{min_cash_reserve:,.0f} buffer maintained"
     
     # Calculate absolute risk per share for both BUY and SHORT SELL
     risk_per_share = abs(entry_price - stop_loss)
     if risk_per_share <= 0:
         return False, 0, "Invalid stop loss level (cannot equal entry price)"
     
-    # Dollar risk amount (e.g. ₹1,500 on ₹100,000)
-    max_risk_amount = current_cash * (config.RISK_PER_TRADE_PCT / 100.0)
+    # Absolute risk cap: Max ₹4,500 risk per trade
+    max_risk_cap = getattr(config, "MAX_RISK_AMOUNT_INR", 4500.0)
+    max_risk_amount = min(max_risk_cap, current_cash * (config.RISK_PER_TRADE_PCT / 100.0))
     
     # Shares based on risk
     qty_by_risk = int(max_risk_amount / risk_per_share)
     
-    # Shares based on max capital allocation (e.g. 25% of capital = ₹25,000 max per position)
-    max_allocation = current_cash * (config.MAX_CAPITAL_PER_TRADE_PCT / 100.0)
+    # Shares based on max capital allocation (Max 20% / ₹1,00,000 max per position)
+    max_allocation = min(available_investable_cash, current_cash * (config.MAX_CAPITAL_PER_TRADE_PCT / 100.0))
     qty_by_capital = int(max_allocation / entry_price)
     
     # Take the safer (smaller) quantity
     qty = min(qty_by_risk, qty_by_capital)
     
-    # Total cost must not exceed available cash
+    # Total cost must not breach available investable cash
     total_cost = qty * entry_price
-    if total_cost > current_cash:
-        qty = int(current_cash / entry_price)
+    if total_cost > available_investable_cash:
+        qty = int(available_investable_cash / entry_price)
         total_cost = qty * entry_price
         
     if qty < 1:
-        return False, 0, f"Share price ₹{entry_price} too high for allocated risk capital"
+        return False, 0, f"Share price ₹{entry_price} exceeds available single-position allocation"
         
     actual_risk = qty * risk_per_share
     return True, qty, f"Approved: {qty} shares (Total Investment: ₹{round(total_cost, 2)}, Max Risk: ₹{round(actual_risk, 2)})"
