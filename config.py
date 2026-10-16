@@ -14,8 +14,8 @@ MAX_RISK_AMOUNT_INR = 4500.0 # Absolute risk cap: No trade can risk more than �
 MAX_CAPITAL_PER_TRADE_PCT = 20.0 # Max 20% of portfolio in a single stock (₹1,00,000 max)
 MAX_OPEN_POSITIONS = 3      # Maximum 3 concurrent high-conviction positions (Focus > Dispersion)
 CASH_RESERVE_MIN = 150000.0 # Keep minimum ₹1.5L to ₹2L in pure Cash Reserve at all times
-INTRADAY_TRADING_ENABLED = os.getenv("INTRADAY_TRADING_ENABLED", "True").lower() in ("true", "1", "yes")
-MAX_INTRADAY_POSITIONS = 2  # Maximum 2 concurrent intraday quick-momentum trades
+INTRADAY_TRADING_ENABLED = False # Strictly disabled: Only trade high-probability institutional swings (No noisy 5-min scalps)
+MAX_INTRADAY_POSITIONS = 0  # No intraday scalps
 INTRADAY_SQUARE_OFF_TIME = "15:15" # Mandatory exit by 03:15 PM IST (Never carry overnight shorts)
 
 # Zone Bounce Strategy Parameters
