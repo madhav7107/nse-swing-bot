@@ -9,12 +9,14 @@ TRADING_MODE = os.getenv("TRADING_MODE", "PAPER")
 
 # Portfolio & Capital Settings
 INITIAL_CAPITAL = 500000.0  # ₹5,00,000 for MegaBull Paper Trading
-RISK_PER_TRADE_PCT = 1.5    # 1.5% max risk per trade (e.g. ₹1,500 on ₹1,00,000)
-MAX_CAPITAL_PER_TRADE_PCT = 25.0 # Max 25% of portfolio in a single stock
-MAX_OPEN_POSITIONS = 5      # Maximum 5 concurrent open swing trades (Strict Rule: 5 means 5)
+RISK_PER_TRADE_PCT = 1.0    # Strict 1.0% max risk per trade (e.g. ₹4,500 max risk)
+MAX_RISK_AMOUNT_INR = 4500.0 # Absolute risk cap: No trade can risk more than ₹4,500
+MAX_CAPITAL_PER_TRADE_PCT = 20.0 # Max 20% of portfolio in a single stock (₹1,00,000 max)
+MAX_OPEN_POSITIONS = 3      # Maximum 3 concurrent high-conviction positions (Focus > Dispersion)
+CASH_RESERVE_MIN = 150000.0 # Keep minimum ₹1.5L to ₹2L in pure Cash Reserve at all times
 INTRADAY_TRADING_ENABLED = os.getenv("INTRADAY_TRADING_ENABLED", "True").lower() in ("true", "1", "yes")
 MAX_INTRADAY_POSITIONS = 2  # Maximum 2 concurrent intraday quick-momentum trades
-INTRADAY_SQUARE_OFF_TIME = "15:15" # Mandatory exit by 03:15 PM IST
+INTRADAY_SQUARE_OFF_TIME = "15:15" # Mandatory exit by 03:15 PM IST (Never carry overnight shorts)
 
 # Zone Bounce Strategy Parameters
 TREND_EMA_LONG = 200        # Macro Trend filter: Price > 200 EMA
@@ -26,7 +28,7 @@ RSI_MAX_ENTRY = 60          # Don't buy if already overbought (>60)
 ZONE_LOOKBACK_BARS = 50     # Swing low lookback for horizontal support zone detection
 
 # Risk & Reward
-TARGET_RR_RATIO = 2.0       # 1:2 Risk to Reward (e.g. Risk ₹50 to make ₹100)
+TARGET_RR_RATIO = 2.0       # Strict 1:2 Risk to Reward (Risk ₹3,500 to make ₹7,000)
 BREAKEVEN_TRIGGER_R = 1.0   # Move SL to Cost once price reaches 1R profit
 TRAILING_STOP_ENABLED = True
 
