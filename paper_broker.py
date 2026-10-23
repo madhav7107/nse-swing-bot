@@ -4,7 +4,7 @@ from trade_logger import (
     get_open_trades, get_account_balance, update_account_balance,
     log_trade_entry, log_trade_exit, update_stop_loss, log_equity_snapshot
 )
-from risk_manager import calculate_position_size
+from risk_manager import calculate_position_size, validate_setup_institutional_gate
 from data_engine import get_stock_data, get_latest_price
 from ntfy_notifier import notify_buy, notify_target_hit, notify_stop_loss_hit, notify_trailing_sl
 
@@ -40,6 +40,12 @@ def execute_paper_trade(setup: Dict) -> bool:
         except Exception as mb_chk_err:
             print(f"[MegaBull Holding Check Warning] {mb_chk_err}")
             
+    # Day Trader Skill Institutional Gate: Time Machine Probability & Strict R:R
+    gate_passed, gate_reason, tm_info = validate_setup_institutional_gate(setup)
+    if not gate_passed:
+        print(f"[INSTITUTIONAL GATE BLOCK] {symbol}: {gate_reason}")
+        return False
+        
     # Calculate position size
     direction = setup.get("direction", "BUY")
     trade_type = setup.get("trade_type", "SWING")
@@ -222,9 +228,20 @@ def monitor_and_manage_positions():
                     print(f"[PROFIT-LOCK] {symbol}: Gain Rs. {round(pos_pnl, 2)}. Moved SL to Rs. {profit_lock_sl} to lock profit!")
                     stop_loss = profit_lock_sl
 
+        # Step F: User Profit Lock Target: Any open position recovering to >= +Rs. 500 profit is automatically closed
+        if pos_pnl >= 500.0:
+            exit_price = current_price
+            exit_side = "BUY" if direction == "SELL" else "SELL"
+            pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
+            log_trade_exit(trade_id, exit_price, "User Rule: +Rs. 500 Profit Auto Exit")
+            notify_target_hit(trade, exit_price, pnl)
+            print(f"[USER +Rs. 500 PROFIT EXIT] {symbol} {exit_side} at Rs. {exit_price} (P&L: +Rs. {round(pnl, 2)}) -> Capital Released!")
+            continue
+
         # Step D: Target Day (Wednesday, Oct 21) Full Cash Square-Off at 03:15 PM
         now_ist = config.get_ist_now()
-        if now_ist.strftime("%Y-%m-%d") >= "2026-10-21" and now_ist.hour >= 15 and now_ist.minute >= 10:
+        target_deadline = getattr(config, "TARGET_DEADLINE", "2026-11-23")
+        if now_ist.strftime("%Y-%m-%d") >= target_deadline and now_ist.hour >= 15 and now_ist.minute >= 10:
             exit_price = today_close
             exit_side = "BUY" if direction == "SELL" else "SELL"
             pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
@@ -238,5 +255,17 @@ def monitor_and_manage_positions():
             notify_target_hit(trade, exit_price, pnl)
             print(f"[WEDNESDAY TARGET DAY EXIT] {symbol} {exit_side} at Rs. {exit_price} (P&L: Rs. {round(pnl, 2)}) -> Converted to Free Cash!")
     
+        # Step E: Mandatory Daily Intraday Square-Off at 03:15 PM
+        if trade.get("strategy") == "INTRADAY" or "INTRADAY" in str(trade.get("notes", "")):
+            now_ist = config.get_ist_now()
+            if now_ist.hour >= 15 and now_ist.minute >= 15:
+                exit_price = current_price
+                exit_side = "BUY" if direction == "SELL" else "SELL"
+                pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
+                log_trade_exit(trade_id, exit_price, "Intraday EOD 03:15 PM Auto Square-Off")
+                notify_target_hit(trade, exit_price, pnl)
+                print(f"[INTRADAY EOD EXIT] {symbol} {exit_side} at Rs. {exit_price} (PnL: Rs. {round(pnl, 2)})")
+                continue
+
     # Save daily portfolio snapshot
     log_equity_snapshot(total_invested, unrealized_pnl, len(open_trades))
