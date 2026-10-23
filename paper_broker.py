@@ -133,6 +133,8 @@ def monitor_and_manage_positions():
         today = df.iloc[-1]
         today_high = float(today["High"])
         today_low = float(today["Low"])
+        today_close = float(today["Close"])
+        direction = trade.get("direction", "BUY")
         current_price = get_latest_price(symbol) or today_close
         pos_pnl = (current_price - entry_price) * qty if direction == "BUY" else (entry_price - current_price) * qty
         unrealized_pnl += pos_pnl
