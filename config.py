@@ -14,8 +14,9 @@ MAX_RISK_AMOUNT_INR = 4500.0 # Absolute risk cap: No trade can risk more than �
 MAX_CAPITAL_PER_TRADE_PCT = 20.0 # Max 20% of portfolio in a single stock (₹1,00,000 max)
 MAX_OPEN_POSITIONS = 3      # Maximum 3 concurrent high-conviction positions (Focus > Dispersion)
 CASH_RESERVE_MIN = 150000.0 # Keep minimum ₹1.5L to ₹2L in pure Cash Reserve at all times
-INTRADAY_TRADING_ENABLED = False # Strictly disabled: Only trade high-probability institutional swings (No noisy 5-min scalps)
-MAX_INTRADAY_POSITIONS = 0  # No intraday scalps
+INTRADAY_TRADING_ENABLED = True # Strictly disabled: Only trade high-probability institutional swings (No noisy 5-min scalps)
+MAX_INTRADAY_POSITIONS = 1  # Exactly 1 active intraday trade
+MAX_INTRADAY_TRADES_PER_DAY = 1 # Rule: 1 high-probability trade per day
 INTRADAY_SQUARE_OFF_TIME = "15:15" # Mandatory exit by 03:15 PM IST (Never carry overnight shorts)
 
 # Zone Bounce Strategy Parameters
@@ -29,8 +30,17 @@ ZONE_LOOKBACK_BARS = 50     # Swing low lookback for horizontal support zone det
 
 # Risk & Reward
 TARGET_RR_RATIO = 2.0       # Strict 1:2 Risk to Reward (Risk ₹3,500 to make ₹7,000)
+DAILY_PROFIT_GOAL = 2000.0  # Madhav's Target: Minimum ₹2,000 Net Profit per day
+TARGET_DEADLINE = "2026-11-23" # User Final Deadline: 23 November 2026
+TARGET_FREE_CASH = 500000.0   # ₹5,00,000 100% Unblocked Free Cash in hand
 BREAKEVEN_TRIGGER_R = 1.0   # Move SL to Cost once price reaches 1R profit
 TRAILING_STOP_ENABLED = True
+MIN_RR_RATIO = 1.5          # Minimum 1:1.5 Risk to Reward for any setup
+
+# Day Trader Skill (Jake Schincariol Quant Module) Integration
+TIME_MACHINE_ENABLED = True
+TIME_MACHINE_MIN_WINRATE = 52.0 # Block setups that are 'Close to a coin flip' (< 52%)
+ORB_STRATEGY_ENABLED = True     # 15-Min Opening Range Breakout with Midpoint SL
 
 # Official NSE Trading Holidays (2026)
 NSE_HOLIDAYS_2026 = {
@@ -112,7 +122,7 @@ BACKUP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trades_b
 NTFY_TOPIC = os.getenv("NTFY_TOPIC", "sr_trading_madhav")
 
 # MegaBull Paper Trading API Integration
-MEGABULL_API_KEY = os.getenv("MEGABULL_API_KEY", "dc09ce27-75b6-4f06-b3e9-646c484ab7ee")
+MEGABULL_API_KEY = os.getenv("MEGABULL_API_KEY", "e78cdac4-1c8d-4fcb-89ca-5b00e7a1acf0")
 MEGABULL_ENABLED = os.getenv("MEGABULL_ENABLED", "True").lower() in ("true", "1", "yes")
 
 # Angel One SmartAPI Credentials (For Live Trading after 2 months paper trading)
