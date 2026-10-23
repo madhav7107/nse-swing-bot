@@ -10,6 +10,7 @@ from data_engine import get_latest_price, get_stock_data
 from strategy_zone_bounce import analyze_zone_bounce_signal
 from strategy_breakout import analyze_breakout_signal
 from strategy_intraday_vwap import analyze_intraday_vwap_signal
+from strategy_orb import analyze_orb_signal
 from paper_broker import execute_paper_buy, monitor_and_manage_positions
 
 import threading
@@ -130,6 +131,14 @@ def perform_full_scan():
                             setup = analyze_intraday_vwap_signal(df_5m, symbol)
                     except Exception:
                         pass
+            
+            if not setup and getattr(config, "ORB_STRATEGY_ENABLED", True):
+                try:
+                    df_5m = get_stock_data(symbol, period="1d", interval="5m")
+                    if df_5m is not None:
+                        setup = analyze_orb_signal(df_5m, symbol)
+                except Exception:
+                    pass
             
             is_uptrend = close > ema200
             near_zone = (abs(close - ema20) / ema20 <= 0.025) or (abs(close - ema50) / ema50 <= 0.025)
@@ -356,6 +365,15 @@ def api_radar():
 @app.get("/api/logs")
 def api_logs():
     return ACTIVITY_LOGS[:50]
+
+@app.get("/api/time_machine/{symbol}")
+def api_time_machine(symbol: str):
+    from time_machine import run_time_machine_simulation
+    sym = symbol if symbol.endswith(".NS") else f"{symbol}.NS"
+    ltp = get_latest_price(sym) or 1000.0
+    sl = round(ltp * 0.97, 2)
+    tgt = round(ltp * 1.06, 2)
+    return run_time_machine_simulation(sym, ltp, sl, tgt, "BUY", "SWING")
 
 @app.get("/api/megabull")
 def api_megabull():
