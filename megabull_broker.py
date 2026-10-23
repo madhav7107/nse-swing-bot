@@ -11,7 +11,7 @@ INSTRUMENTS_FILE = os.path.join(os.path.dirname(__file__), "megabull_instruments
 _INSTRUMENT_MAP = {}
 
 def get_headers():
-    api_key = getattr(config, "MEGABULL_API_KEY", "dc09ce27-75b6-4f06-b3e9-646c484ab7ee")
+    api_key = getattr(config, "MEGABULL_API_KEY", "e78cdac4-1c8d-4fcb-89ca-5b00e7a1acf0")
     return {
         "api-key": api_key,
         "User-Agent": "SR-Trading-Bot/1.0",
