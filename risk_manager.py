@@ -25,7 +25,15 @@ def validate_setup_institutional_gate(setup: Dict[str, Any]) -> Tuple[bool, str,
     if rr < getattr(config, "MIN_RR_RATIO", 1.5):
         return False, f"BLOCK: Risk/Reward 1:{round(rr, 2)} is below minimum 1:1.5", {}
         
-    # Gate 2: Time Machine Monte Carlo simulation
+    # Gate 2: Daily Intraday vs Swing Time Machine Gate
+    if trade_type == "INTRADAY":
+        # Mandatory daily intraday trade: requires confluence >= 70% and R:R >= 1.5
+        score = setup.get("confluence_score", 75)
+        if score >= 70 and rr >= 1.5:
+            return True, f"PASS [Daily Intraday]: High-Conviction Setup Approved (Score: {score}%, R:R: 1:{round(rr, 1)})", {}
+        else:
+            return False, f"BLOCK: Intraday setup below confluence threshold (Score: {score}%)", {}
+            
     if getattr(config, "TIME_MACHINE_ENABLED", True):
         try:
             from time_machine import run_time_machine_simulation
