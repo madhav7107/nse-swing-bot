@@ -32,7 +32,8 @@ def send_ntfy(title: str, message: str, priority: str = "default", tags: list = 
             with urllib.request.urlopen(req, timeout=5) as resp:
                 if resp.status == 200:
                     delivered = True
-                    print(f"[ntfy SUCCESS] Delivered via {url}")
+                    print(f"[ntfy SUCCESS] Delivered via {url}")
+                    break
         except Exception as e:
             # Fallback to plain text for this server
             try:
@@ -46,7 +47,8 @@ def send_ntfy(title: str, message: str, priority: str = "default", tags: list = 
                 with urllib.request.urlopen(req_plain, timeout=5) as resp2:
                     if resp2.status == 200:
                         delivered = True
-                        print(f"[ntfy FALLBACK SUCCESS] Delivered via {url}")
+                        print(f"[ntfy FALLBACK SUCCESS] Delivered via {url}")
+                        break
             except Exception:
                 pass
                 
