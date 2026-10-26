@@ -12,11 +12,12 @@ INITIAL_CAPITAL = 500000.0  # ₹5,00,000 for MegaBull Paper Trading
 RISK_PER_TRADE_PCT = 1.0    # Strict 1.0% max risk per trade (e.g. ₹4,500 max risk)
 MAX_RISK_AMOUNT_INR = 4500.0 # Absolute risk cap: No trade can risk more than ₹4,500
 MAX_CAPITAL_PER_TRADE_PCT = 20.0 # Max 20% of portfolio in a single stock (₹1,00,000 max)
-MAX_OPEN_POSITIONS = 3      # Maximum 3 concurrent high-conviction positions (Focus > Dispersion)
-CASH_RESERVE_MIN = 150000.0 # Keep minimum ₹1.5L to ₹2L in pure Cash Reserve at all times
+MAX_OPEN_POSITIONS = 4      # Up to 4 active concurrent positions
+CASH_RESERVE_MIN = 100000.0 # Maintain ₹1.0L buffer to deploy ₹3.25L active capital
 INTRADAY_TRADING_ENABLED = True # Strictly disabled: Only trade high-probability institutional swings (No noisy 5-min scalps)
-MAX_INTRADAY_POSITIONS = 1  # Exactly 1 active intraday trade
-MAX_INTRADAY_TRADES_PER_DAY = 1 # Rule: 1 high-probability trade per day
+MAX_INTRADAY_POSITIONS = 3  # Up to 3 active intraday positions
+MAX_INTRADAY_TRADES_PER_DAY = 6 # Up to 6 high-conviction trades per day (Anti-block pacing)
+API_COOLDOWN_SECONDS = 3.0  # 3-second delay to guarantee zero account block risk
 INTRADAY_SQUARE_OFF_TIME = "15:15" # Mandatory exit by 03:15 PM IST (Never carry overnight shorts)
 
 # Zone Bounce Strategy Parameters
