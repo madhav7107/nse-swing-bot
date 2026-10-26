@@ -236,6 +236,12 @@ def monitor_and_manage_positions():
             exit_side = "BUY" if direction == "SELL" else "SELL"
             pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
             log_trade_exit(trade_id, exit_price, "User Rule: +Rs. 500 Profit Auto Exit")
+            if getattr(config, "MEGABULL_ENABLED", False):
+                try:
+                    from megabull_broker import place_order as mb_place_order
+                    mb_place_order(symbol, qty, exit_side, exit_price)
+                except Exception as mb_err:
+                    print(f"[MegaBull +500 Profit Exit Error] {mb_err}")
             notify_target_hit(trade, exit_price, pnl)
             print(f"[USER +Rs. 500 PROFIT EXIT] {symbol} {exit_side} at Rs. {exit_price} (P&L: +Rs. {round(pnl, 2)}) -> Capital Released!")
             continue
