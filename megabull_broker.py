@@ -91,6 +91,8 @@ def place_order(symbol: str, qty: int, order_type: str, price: float) -> dict:
     }
 
     url = f"{MEGABULL_API_BASE}/api/order/buysell"
+    import time
+    time.sleep(getattr(config, "API_COOLDOWN_SECONDS", 2.0))
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
