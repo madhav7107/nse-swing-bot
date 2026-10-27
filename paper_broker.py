@@ -49,7 +49,7 @@ def execute_paper_trade(setup: Dict) -> bool:
     # Calculate position size
     direction = setup.get("direction", "BUY")
     trade_type = setup.get("trade_type", "SWING")
-    approved, qty, reason = calculate_position_size(entry_price, stop_loss, trade_type=trade_type, direction=direction)
+    approved, qty, reason = calculate_position_size(entry_price, stop_loss, trade_type=trade_type, direction=direction, confluence_score=setup.get("confluence_score", 75.0))
     if not approved:
         print(f"Order rejected for {symbol}: {reason}")
         return False
@@ -230,21 +230,25 @@ def monitor_and_manage_positions():
                     print(f"[PROFIT-LOCK] {symbol}: Gain Rs. {round(pos_pnl, 2)}. Moved SL to Rs. {profit_lock_sl} to lock profit!")
                     stop_loss = profit_lock_sl
 
-        # Step F: User Profit Lock Target: Any open position recovering to >= +Rs. 500 profit is automatically closed
-        if pos_pnl >= 500.0:
-            exit_price = current_price
-            exit_side = "BUY" if direction == "SELL" else "SELL"
-            pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
-            log_trade_exit(trade_id, exit_price, "User Rule: +Rs. 500 Profit Auto Exit")
-            if getattr(config, "MEGABULL_ENABLED", False):
-                try:
-                    from megabull_broker import place_order as mb_place_order
-                    mb_place_order(symbol, qty, exit_side, exit_price)
-                except Exception as mb_err:
-                    print(f"[MegaBull +500 Profit Exit Error] {mb_err}")
-            notify_target_hit(trade, exit_price, pnl)
-            print(f"[USER +Rs. 500 PROFIT EXIT] {symbol} {exit_side} at Rs. {exit_price} (P&L: +Rs. {round(pnl, 2)}) -> Capital Released!")
-            continue
+        # Step C: Smart Trailing & Jackpot Runner (User Approved Strategy)
+        # 1. Zero-Risk Guarantee: Once profit reaches +₹1,000, move SL to Breakeven (+0.2% buffer)
+        if pos_pnl >= getattr(config, "SMART_TRAILING_BREAKEVEN", 1000.0):
+            be_sl = round(entry_price * 1.002, 2) if direction == "BUY" else round(entry_price * 0.998, 2)
+            if (direction == "BUY" and be_sl > stop_loss) or (direction == "SELL" and be_sl < stop_loss):
+                update_stop_loss(trade_id, be_sl, "Zero-Risk Breakeven Activated (+0.2%)")
+                notify_trailing_sl(symbol, stop_loss, be_sl, current_price)
+                print(f"[BREAKEVEN ZERO-RISK] {symbol}: Profit +Rs. {round(pos_pnl, 2)}. Moved SL to Rs. {be_sl}")
+                stop_loss = be_sl
+
+        # 2. Jackpot Runner Lock: At +₹2,500 and above, trail SL to lock 70% of gains, leaving 30% runner for ₹10,000 - ₹15,000+!
+        if pos_pnl >= getattr(config, "SMART_TRAILING_RUNNER", 2500.0):
+            locked_gain = pos_pnl * 0.70
+            trail_sl = round(entry_price + (locked_gain / qty), 2) if direction == "BUY" else round(entry_price - (locked_gain / qty), 2)
+            if (direction == "BUY" and trail_sl > stop_loss) or (direction == "SELL" and trail_sl < stop_loss):
+                update_stop_loss(trade_id, trail_sl, f"Smart Trailing: Locked 70% Gain (+Rs. {round(locked_gain, 2)})")
+                notify_trailing_sl(symbol, stop_loss, trail_sl, current_price)
+                print(f"[JACKPOT RUNNER TRAIL] {symbol}: Profit +Rs. {round(pos_pnl, 2)}. Trailing SL to Rs. {trail_sl} (Locked: +Rs. {round(locked_gain, 2)})")
+                stop_loss = trail_sl
 
         # Step D: Target Day (Wednesday, Oct 21) Full Cash Square-Off at 03:15 PM
         now_ist = config.get_ist_now()
