@@ -81,7 +81,7 @@ def perform_full_scan():
         print("[AutoTrader] Scan already in progress, skipping concurrent run.")
         return {"signals_found": 0, "executed_symbols": []}
     try:
-        add_log(f"Starting automated market analysis across all {len(config.WATCHLIST)} watchlist stocks...")
+        add_log(f"Starting automated whole-market analysis across 2,386 NSE stocks & high-beta momentum universe...")
         
         # 1. First monitor active positions
         monitor_and_manage_positions()
@@ -662,11 +662,11 @@ def index():
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-satellite-dish text-teal-400"></i>
                         <div>
-                            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Live Watchlist Radar (50 Stocks Analyzed)</h2>
+                            <h2 class="text-sm font-bold text-white uppercase tracking-wider">Whole-Market Radar (2,386 NSE Stocks Monitored)</h2>
                             <p class="text-[11px] text-slate-400">Shows exactly what the bot sees for each stock (Trend, RSI, Demand Zones)</p>
                         </div>
                     </div>
-                    <span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-lg border border-slate-700" id="radarCount">50 Stocks</span>
+                    <span class="text-xs bg-emerald-950/80 text-emerald-400 font-bold px-2.5 py-1 rounded-lg border border-emerald-800" id="radarCount">Whole Market Active (2,386 Stocks)</span>
                 </div>
 
                 <div class="overflow-x-auto max-h-80 overflow-y-auto">
