@@ -9,11 +9,14 @@ TRADING_MODE = os.getenv("TRADING_MODE", "PAPER")
 
 # Portfolio & Capital Settings
 INITIAL_CAPITAL = 500000.0  # ₹5,00,000 for MegaBull Paper Trading
-RISK_PER_TRADE_PCT = 1.0    # Strict 1.0% max risk per trade (e.g. ₹4,500 max risk)
-MAX_RISK_AMOUNT_INR = 4500.0 # Absolute risk cap: No trade can risk more than ₹4,500
-MAX_CAPITAL_PER_TRADE_PCT = 20.0 # Max 20% of portfolio in a single stock (₹1,00,000 max)
-MAX_OPEN_POSITIONS = 4      # Up to 4 active concurrent positions
-CASH_RESERVE_MIN = 100000.0 # Maintain ₹1.0L buffer to deploy ₹3.25L active capital
+RISK_PER_TRADE_PCT = 1.5    # Strict 1.0% max risk per trade (e.g. ₹4,500 max risk)
+MAX_RISK_AMOUNT_INR = 6000.0 # Absolute risk cap: No trade can risk more than ₹4,500
+MAX_CAPITAL_PER_TRADE_PCT = 40.0
+APLUS_SETUP_ALLOCATION_MAX = 200000.0 # Max ₹2.0L allocation on A+ setups
+SMART_TRAILING_BREAKEVEN = 1000.0 # Breakeven at +₹1000
+SMART_TRAILING_RUNNER = 2500.0 # Trail 70% above +₹2500 # Max 20% of portfolio in a single stock (₹1,00,000 max)
+MAX_OPEN_POSITIONS = 3      # Up to 4 active concurrent positions
+CASH_RESERVE_MIN = 60000.0 # Maintain ₹1.0L buffer to deploy ₹3.25L active capital
 INTRADAY_TRADING_ENABLED = True # Strictly disabled: Only trade high-probability institutional swings (No noisy 5-min scalps)
 MAX_INTRADAY_POSITIONS = 3  # Up to 3 active intraday positions
 MAX_INTRADAY_TRADES_PER_DAY = 6 # Up to 6 high-conviction trades per day (Anti-block pacing)
