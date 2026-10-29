@@ -8,15 +8,15 @@ import os
 TRADING_MODE = os.getenv("TRADING_MODE", "PAPER")
 
 # Portfolio & Capital Settings
-INITIAL_CAPITAL = 500000.0  # ₹5,00,000 for MegaBull Paper Trading
-RISK_PER_TRADE_PCT = 1.5    # Strict 1.0% max risk per trade (e.g. ₹4,500 max risk)
-MAX_RISK_AMOUNT_INR = 6000.0 # Absolute risk cap: No trade can risk more than ₹4,500
+INITIAL_CAPITAL = 500000.0  # Rs. 5,00,000 for MegaBull Paper Trading
+RISK_PER_TRADE_PCT = 1.5    # Strict 1.0% max risk per trade (e.g. Rs. 4,500 max risk)
+MAX_RISK_AMOUNT_INR = 6000.0 # Absolute risk cap: No trade can risk more than Rs. 4,500
 MAX_CAPITAL_PER_TRADE_PCT = 40.0
-APLUS_SETUP_ALLOCATION_MAX = 200000.0 # Max ₹2.0L allocation on A+ setups
-SMART_TRAILING_BREAKEVEN = 1000.0 # Breakeven at +₹1000
-SMART_TRAILING_RUNNER = 2500.0 # Trail 70% above +₹2500 # Max 20% of portfolio in a single stock (₹1,00,000 max)
+APLUS_SETUP_ALLOCATION_MAX = 200000.0 # Max Rs. 2.0L allocation on A+ setups
+SMART_TRAILING_BREAKEVEN = 1000.0 # Breakeven at +Rs. 1000
+SMART_TRAILING_RUNNER = 2500.0 # Trail 70% above +Rs. 2500 # Max 20% of portfolio in a single stock (Rs. 1,00,000 max)
 MAX_OPEN_POSITIONS = 3      # Up to 4 active concurrent positions
-CASH_RESERVE_MIN = 60000.0 # Maintain ₹1.0L buffer to deploy ₹3.25L active capital
+CASH_RESERVE_MIN = 60000.0 # Maintain Rs. 1.0L buffer to deploy Rs. 3.25L active capital
 INTRADAY_TRADING_ENABLED = True # Strictly disabled: Only trade high-probability institutional swings (No noisy 5-min scalps)
 MAX_INTRADAY_POSITIONS = 3  # Up to 3 active intraday positions
 MAX_INTRADAY_TRADES_PER_DAY = 6 # Up to 6 high-conviction trades per day (Anti-block pacing)
@@ -33,10 +33,10 @@ RSI_MAX_ENTRY = 60          # Don't buy if already overbought (>60)
 ZONE_LOOKBACK_BARS = 50     # Swing low lookback for horizontal support zone detection
 
 # Risk & Reward
-TARGET_RR_RATIO = 2.0       # Strict 1:2 Risk to Reward (Risk ₹3,500 to make ₹7,000)
-DAILY_PROFIT_GOAL = 2000.0  # Madhav's Target: Minimum ₹2,000 Net Profit per day
+TARGET_RR_RATIO = 2.0       # Strict 1:2 Risk to Reward (Risk Rs. 3,500 to make Rs. 7,000)
+DAILY_PROFIT_GOAL = 5000.0  # Madhav's Target: Minimum Rs. 2,000 Net Profit per day
 TARGET_DEADLINE = "2026-11-23" # User Final Deadline: 23 November 2026
-TARGET_FREE_CASH = 550000.0   # Madhav's New Target: ₹5,50,000 Unblocked Free Cash before Dhan API
+TARGET_FREE_CASH = 550000.0   # Madhav's New Target: Rs. 5,50,000 Unblocked Free Cash before Dhan API
 BREAKEVEN_TRIGGER_R = 1.0   # Move SL to Cost once price reaches 1R profit
 TRAILING_STOP_ENABLED = True
 MIN_RR_RATIO = 1.5          # Minimum 1:1.5 Risk to Reward for any setup
