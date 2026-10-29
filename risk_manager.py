@@ -58,9 +58,9 @@ def validate_setup_institutional_gate(setup: Dict[str, Any]) -> Tuple[bool, str,
 def calculate_position_size(entry_price: float, stop_loss: float, trade_type: str = "SWING", direction: str = "BUY", confluence_score: float = 75.0) -> Tuple[bool, int, str]:
     """
     Computes exact share quantity based on institutional risk management:
-    1. Maximum risk per trade = 1.0% to 1.5% of current equity (Cap ₹6,000 on A+ setups)
-    2. A+ Setups (confluence >= 80%): Allocate up to ₹2,00,000 to maximize profit targets (₹10k-₹15k+)
-    3. Regular Setups: Standard allocation up to ₹1,00,000 (Max 20%)
+    1. Maximum risk per trade = 1.0% to 1.5% of current equity (Cap Rs. 6,000 on A+ setups)
+    2. A+ Setups (confluence >= 80%): Allocate up to Rs. 2,00,000 to maximize profit targets (Rs. 10k-Rs. 15k+)
+    3. Regular Setups: Standard allocation up to Rs. 1,00,000 (Max 20%)
     4. Supports both BUY and SHORT SELL
     5. Separate tracking for Intraday (Max 3) and Swing (Max 3)
     """
@@ -85,23 +85,23 @@ def calculate_position_size(entry_price: float, stop_loss: float, trade_type: st
     min_cash_reserve = getattr(config, "CASH_RESERVE_MIN", 60000.0)
     available_investable_cash = max(0.0, current_cash - min_cash_reserve)
     if available_investable_cash < 5000:
-        return False, 0, f"Cash reserve protected: minimum ₹{min_cash_reserve:,.0f} buffer maintained"
+        return False, 0, f"Cash reserve protected: minimum Rs. {min_cash_reserve:,.0f} buffer maintained"
     
     # Calculate absolute risk per share for both BUY and SHORT SELL
     risk_per_share = abs(entry_price - stop_loss)
     if risk_per_share <= 0:
         return False, 0, "Invalid stop loss level (cannot equal entry price)"
     
-    # High-Conviction A+ Setup Tier: allocate up to ₹2.0L and ₹6k risk cap
+    # High-Conviction A+ Setup Tier: allocate up to Rs. 2.0L and Rs. 6k risk cap
     is_a_plus = float(confluence_score) >= 80.0
     if is_a_plus:
         max_risk_cap = getattr(config, "MAX_RISK_AMOUNT_INR", 6000.0)
         max_alloc_cap = getattr(config, "APLUS_SETUP_ALLOCATION_MAX", 200000.0)
-        tier_label = "A+ Institutional Setup (₹2.0L Cap)"
+        tier_label = "A+ Institutional Setup (Rs. 2.0L Cap)"
     else:
         max_risk_cap = 4000.0
         max_alloc_cap = 100000.0
-        tier_label = "Standard Setup (₹1.0L Cap)"
+        tier_label = "Standard Setup (Rs. 1.0L Cap)"
         
     max_risk_amount = min(max_risk_cap, current_cash * (config.RISK_PER_TRADE_PCT / 100.0))
     qty_by_risk = int(max_risk_amount / risk_per_share)
@@ -120,7 +120,7 @@ def calculate_position_size(entry_price: float, stop_loss: float, trade_type: st
         total_cost = qty * entry_price
         
     if qty < 1:
-        return False, 0, f"Share price ₹{entry_price} exceeds available single-position allocation"
+        return False, 0, f"Share price Rs. {entry_price} exceeds available single-position allocation"
         
     actual_risk = qty * risk_per_share
-    return True, qty, f"Approved [{tier_label}]: {qty} shares (Total Investment: ₹{round(total_cost, 2)}, Max Risk: ₹{round(actual_risk, 2)})"
+    return True, qty, f"Approved [{tier_label}]: {qty} shares (Total Investment: Rs. {round(total_cost, 2)}, Max Risk: Rs. {round(actual_risk, 2)})"
