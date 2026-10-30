@@ -220,15 +220,7 @@ def monitor_and_manage_positions():
                     print(f"[TRAILING SL] {symbol}: Trailed Stop Loss to Rs. {new_sl} using 20 EMA")
                     stop_loss = new_sl
 
-            # Step C: Smart Profit-Lock (Guarantees at least 70% profit once gain >= Rs. 1,000)
-            if pos_pnl >= 1000.0:
-                locked_gain = pos_pnl * 0.70
-                profit_lock_sl = round(entry_price + (locked_gain / qty), 2) if direction == "BUY" else round(entry_price - (locked_gain / qty), 2)
-                if (direction == "BUY" and profit_lock_sl > stop_loss) or (direction == "SELL" and profit_lock_sl < stop_loss):
-                    update_stop_loss(trade_id, profit_lock_sl, f"Smart Profit-Lock (+Rs. {round(locked_gain, 2)} locked)")
-                    notify_trailing_sl(symbol, stop_loss, profit_lock_sl, today_close)
-                    print(f"[PROFIT-LOCK] {symbol}: Gain Rs. {round(pos_pnl, 2)}. Moved SL to Rs. {profit_lock_sl} to lock profit!")
-                    stop_loss = profit_lock_sl
+
 
         # Step C: Smart Trailing & Jackpot Runner (User Approved Strategy)
         # 1. Zero-Risk Guarantee: Once profit reaches +₹1,000, move SL to Breakeven (+0.2% buffer)
