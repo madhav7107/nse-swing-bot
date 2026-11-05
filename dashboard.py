@@ -75,7 +75,14 @@ def get_live_indices():
 
 SCAN_LOCK = threading.Lock()
 
-def perform_full_scan():
+def # 1. Trigger AI Research Agent to discover fresh A+ Setups
+    try:
+        from autonomous_research_agent import run_continuous_research
+        run_continuous_research(limit_symbols=80)
+    except Exception as e:
+        print(f"[Research Agent Daemon Error] {e}")
+
+    perform_full_scan():
     global LAST_AUTO_SCAN, RADAR_DATA
     if not SCAN_LOCK.acquire(blocking=False):
         print("[AutoTrader] Scan already in progress, skipping concurrent run.")
