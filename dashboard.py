@@ -90,7 +90,18 @@ def perform_full_scan():
         executed = []
         radar_list = []
         
-        for symbol in config.WATCHLIST:
+        # Scan High-Beta Watchlist + dynamically scan top market breakouts
+        scan_universe = list(config.WATCHLIST)
+        try:
+            from market_scanner import get_top_market_breakouts
+            extra_syms = get_top_market_breakouts(limit=40)
+            for es in extra_syms:
+                if es not in scan_universe:
+                    scan_universe.append(es)
+        except Exception:
+            pass
+
+        for symbol in scan_universe:
             df = get_stock_data(symbol, period="1y", interval="1d")
             if df is None:
                 radar_list.append({
@@ -188,10 +199,10 @@ def perform_full_scan():
             
         RADAR_DATA = radar_list
         LAST_AUTO_SCAN = config.get_ist_now().strftime("%Y-%m-%d %H:%M:%S IST")
-        add_log(f"Scan complete: Scanned {len(config.WATCHLIST)} stocks. Found {len(signals)} setups. Executed {len(executed)} orders.")
+        add_log(f"Scan complete: Scanned {len(scan_universe)} stocks. Found {len(signals)} setups. Executed {len(executed)} orders.")
         return {
             "status": "success",
-            "scanned_count": len(config.WATCHLIST),
+            "scanned_count": len(scan_universe),
             "signals_found": len(signals),
             "executed_symbols": executed
         }
