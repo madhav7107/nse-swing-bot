@@ -25,14 +25,14 @@ def validate_setup_institutional_gate(setup: Dict[str, Any]) -> Tuple[bool, str,
     if rr < getattr(config, "MIN_RR_RATIO", 1.5):
         return False, f"BLOCK: Risk/Reward 1:{round(rr, 2)} is below minimum 1:1.5", {}
         
-    # Gate 2: Daily Intraday vs Swing Time Machine Gate
+    # Gate 2: Daily Intraday vs Swing Time Machine Gate (Ultra-Strict Quality Gate)
     if trade_type == "INTRADAY":
-        # Mandatory daily intraday trade: requires confluence >= 70% and R:R >= 1.5
         score = setup.get("confluence_score", 75)
-        if score >= 70 and rr >= 1.5:
-            return True, f"PASS [Daily Intraday]: High-Conviction Setup Approved (Score: {score}%, R:R: 1:{round(rr, 1)})", {}
+        min_conf = getattr(config, "CONFLUENCE_THRESHOLD", 82)
+        if score >= min_conf and rr >= 1.5:
+            return True, f"PASS [Daily Intraday]: Institutional A+ Setup Approved (Score: {score}%, R:R: 1:{round(rr, 1)})", {}
         else:
-            return False, f"BLOCK: Intraday setup below confluence threshold (Score: {score}%)", {}
+            return False, f"BLOCK: Intraday setup below strict quality threshold {min_conf}% (Score: {score}%)", {}
             
     if getattr(config, "TIME_MACHINE_ENABLED", True):
         try:
@@ -64,6 +64,15 @@ def calculate_position_size(entry_price: float, stop_loss: float, trade_type: st
     4. Supports both BUY and SHORT SELL
     5. Separate tracking for Intraday (Max 3) and Swing (Max 3)
     """
+    # Guard 0: Daily Max Loss Limit Check (Stops profit leak on chop days)
+    today_str = config.get_ist_now().strftime("%Y-%m-%d")
+    from trade_logger import get_closed_trades
+    closed_today = [t for t in get_closed_trades(limit=50) if today_str in str(t.get("exit_date", ""))]
+    today_realized_loss = sum(float(t.get("pnl") or 0) for t in closed_today if float(t.get("pnl") or 0) < 0)
+    max_daily_loss = getattr(config, "MAX_DAILY_LOSS_INR", 1500.0)
+    if abs(today_realized_loss) >= max_daily_loss:
+        return False, 0, f"BLOCK: Daily Max Loss Limit reached (Rs. {abs(today_realized_loss):.2f} / Rs. {max_daily_loss:.2f}). Trading paused to protect capital."
+
     open_trades = get_open_trades()
     if trade_type == "INTRADAY":
         intraday_open = [t for t in open_trades if t.get("strategy") == "INTRADAY" or "INTRADAY" in str(t.get("notes", ""))]
