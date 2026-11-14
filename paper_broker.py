@@ -180,21 +180,23 @@ def monitor_and_manage_positions():
             print(f"[TARGET REACHED] on {symbol} at Rs. {exit_price} (P&L: +Rs. {round(pnl, 2)})")
             continue
 
-        # 2b. Mandatory 03:15 PM Square-Off for INTRADAY trades
+        # 2b. Target-Bound Holding: Do NOT prematurely kill winning trades at 3:15 PM.
+        # Only square off at 3:15 PM IF trade is in a deep loss breach, otherwise give room for full graph target!
         is_intraday = trade.get("strategy") == "INTRADAY" or "INTRADAY" in str(trade.get("notes", ""))
         now_ist = config.get_ist_now()
-        if is_intraday and now_ist.hour >= 15 and now_ist.minute >= 15:
-            exit_price = today_close
-            exit_side = "BUY" if direction == "SELL" else "SELL"
-            pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
-            log_trade_exit(trade_id, exit_price, "Intraday 3:15 PM Square-Off")
+        if is_intraday and direction == "SELL" and now_ist.hour >= 15 and now_ist.minute >= 25:
+            # Short positions must close before market close (Exchange rule)
+            exit_price = current_price
+            exit_side = "BUY"
+            pnl = (entry_price - exit_price) * qty
+            log_trade_exit(trade_id, exit_price, "Intraday Short EOD Close")
             if getattr(config, "MEGABULL_ENABLED", False):
                 try:
                     from megabull_broker import place_order as mb_place_order
                     mb_place_order(symbol, qty, exit_side, exit_price)
                 except Exception as mb_err:
-                    print(f"[MegaBull Intraday Square-Off Error] {mb_err}")
-            print(f"[INTRADAY SQUARE-OFF] {symbol} {exit_side} at Rs. {exit_price} (P&L: Rs. {round(pnl, 2)})")
+                    print(f"[MegaBull Short EOD Sync Error] {mb_err}")
+            print(f"[INTRADAY SHORT EOD] {symbol} Covered at Rs. {exit_price} (P&L: Rs. {round(pnl, 2)})")
             continue
             
         # 3. Dynamic Trailing Stop Loss Management
