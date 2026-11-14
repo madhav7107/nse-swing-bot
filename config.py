@@ -33,14 +33,15 @@ RSI_MAX_ENTRY = 60          # Don't buy if already overbought (>60)
 ZONE_LOOKBACK_BARS = 50     # Swing low lookback for horizontal support zone detection
 
 # Risk & Reward
-TARGET_RR_RATIO = 2.0       # Strict 1:2 Risk to Reward (Risk Rs. 3,500 to make Rs. 7,000)
+TARGET_RR_RATIO = 2.5       # Strict 1:2 Risk to Reward (Risk Rs. 3,500 to make Rs. 7,000)
 DAILY_PROFIT_GOAL = 5000.0
+MIN_PROFIT_TARGET_INR = 3000.0 # Strict Minimum Profit Target per Trade
 MAX_DAILY_LOSS_INR = 1500.0 # Strict Daily Loss Cap to prevent profit leak  # Madhav's Target: Minimum Rs. 2,000 Net Profit per day
 TARGET_DEADLINE = "2026-11-23" # User Final Deadline: 23 November 2026
 TARGET_FREE_CASH = 550000.0   # Madhav's New Target: Rs. 5,50,000 Unblocked Free Cash before Dhan API
 BREAKEVEN_TRIGGER_R = 1.0   # Move SL to Cost once price reaches 1R profit
 TRAILING_STOP_ENABLED = True
-MIN_RR_RATIO = 1.5          # Minimum 1:1.5 Risk to Reward for any setup
+MIN_RR_RATIO = 2.0          # Minimum 1:1.5 Risk to Reward for any setup
 
 # Day Trader Skill (Jake Schincariol Quant Module) Integration
 TIME_MACHINE_ENABLED = True
