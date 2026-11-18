@@ -19,7 +19,7 @@ MAX_OPEN_POSITIONS = 3      # Up to 4 active concurrent positions
 CASH_RESERVE_MIN = 60000.0 # Maintain Rs. 1.0L buffer to deploy Rs. 3.25L active capital
 INTRADAY_TRADING_ENABLED = True # Strictly disabled: Only trade high-probability institutional swings (No noisy 5-min scalps)
 MAX_INTRADAY_POSITIONS = 3  # Up to 3 active intraday positions
-MAX_INTRADAY_TRADES_PER_DAY = 2 # Up to 6 high-conviction trades per day (Anti-block pacing)
+MAX_INTRADAY_TRADES_PER_DAY = 3 # Up to 6 high-conviction trades per day (Anti-block pacing)
 API_COOLDOWN_SECONDS = 3.0  # 3-second delay to guarantee zero account block risk
 INTRADAY_SQUARE_OFF_TIME = "15:15" # Mandatory exit by 03:15 PM IST (Never carry overnight shorts)
 
@@ -33,7 +33,7 @@ RSI_MAX_ENTRY = 60          # Don't buy if already overbought (>60)
 ZONE_LOOKBACK_BARS = 50     # Swing low lookback for horizontal support zone detection
 
 # Risk & Reward
-TARGET_RR_RATIO = 2.5       # Strict 1:2 Risk to Reward (Risk Rs. 3,500 to make Rs. 7,000)
+TARGET_RR_RATIO = 2.0       # Strict 1:2 Risk to Reward (Risk Rs. 3,500 to make Rs. 7,000)
 DAILY_PROFIT_GOAL = 5000.0
 MIN_PROFIT_TARGET_INR = 3000.0 # Strict Minimum Profit Target per Trade
 MAX_DAILY_LOSS_INR = 1500.0 # Strict Daily Loss Cap to prevent profit leak  # Madhav's Target: Minimum Rs. 2,000 Net Profit per day
@@ -41,11 +41,11 @@ TARGET_DEADLINE = "2026-12-09" # User Final Deadline: 23 November 2026
 TARGET_FREE_CASH = 550000.0   # Madhav's New Target: Rs. 5,50,000 Unblocked Free Cash before Dhan API
 BREAKEVEN_TRIGGER_R = 1.0   # Move SL to Cost once price reaches 1R profit
 TRAILING_STOP_ENABLED = True
-MIN_RR_RATIO = 2.0          # Minimum 1:1.5 Risk to Reward for any setup
+MIN_RR_RATIO = 1.5          # Minimum 1:1.5 Risk to Reward for any setup
 
 # Day Trader Skill (Jake Schincariol Quant Module) Integration
 TIME_MACHINE_ENABLED = True
-TIME_MACHINE_MIN_WINRATE = 52.0 # Block setups that are 'Close to a coin flip' (< 52%)
+TIME_MACHINE_MIN_WINRATE = 35.0 # Block setups that are 'Close to a coin flip' (< 52%)
 ORB_STRATEGY_ENABLED = True     # 15-Min Opening Range Breakout with Midpoint SL
 
 # Official NSE Trading Holidays (2026)
@@ -69,7 +69,7 @@ NSE_HOLIDAYS_2026 = {
 }
 
 # Institutional Confluence Threshold (75% for strict high-probability institutional setups)
-CONFLUENCE_THRESHOLD = 82
+CONFLUENCE_THRESHOLD = 72
 
 def get_ist_now():
     import datetime
