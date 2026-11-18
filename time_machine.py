@@ -1,3 +1,4 @@
+import config
 """
 Time Machine Engine (Inspired by Jake Schincariol's Day Trader Skill v2)
 Adapted for Indian National Stock Exchange (NSE) & Swing/Intraday Trading.
@@ -138,15 +139,14 @@ def run_time_machine_simulation(
     # - If R:R < 1.5 -> BLOCK
     # - If expected return <= 0.10R -> BLOCK
     # - If win rate >= 55% and expected_r >= 0.20R -> PASS
-    if win_rate < 50.0:
+    min_win = getattr(config, "TIME_MACHINE_MIN_WINRATE", 35.0)
+    # With 1:2 R:R, even a 35% win rate has positive mathematical expectancy
+    if win_rate < min_win and expected_r <= 0:
         verdict = "BLOCK"
-        reason = f"Coin Flip Risk: Target reached first in only {win_rate:.1f}% of replays vs Stop in {loss_rate:.1f}%. Setup rejected."
-    elif rr_ratio < 1.5:
+        reason = f"Statistical Edge Low: Win rate {win_rate:.1f}% with expected R {expected_r:.2f}. Setup rejected."
+    elif rr_ratio < 1.3:
         verdict = "BLOCK"
-        reason = f"Poor Risk/Reward: 1:{rr_ratio:.2f} is below institutional minimum (1:1.5)."
-    elif expected_r <= 0.10:
-        verdict = "BLOCK"
-        reason = f"Expected edge too low (+{expected_r:.2f}R). Rejected to protect capital."
+        reason = f"Poor Risk/Reward: 1:{rr_ratio:.2f} is below minimum (1:1.3)."
     else:
         verdict = "PASS"
         reason = f"High-Conviction Institutional Setup! Win Prob: {win_rate:.1f}%, Expected: +{expected_r:.2f}R, R:R: 1:{rr_ratio:.1f}."
