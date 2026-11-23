@@ -7,16 +7,24 @@ import os
 # Execution Mode: "PAPER" or "ANGEL_ONE"
 TRADING_MODE = os.getenv("TRADING_MODE", "PAPER")
 
-# Portfolio & Capital Settings
-INITIAL_CAPITAL = 500000.0  # Rs. 5,00,000 for MegaBull Paper Trading
-RISK_PER_TRADE_PCT = 1.5    # Strict 1.0% max risk per trade (e.g. Rs. 4,500 max risk)
-MAX_RISK_AMOUNT_INR = 6000.0 # Absolute risk cap: No trade can risk more than Rs. 4,500
-MAX_CAPITAL_PER_TRADE_PCT = 40.0
-APLUS_SETUP_ALLOCATION_MAX = 200000.0 # Max Rs. 2.0L allocation on A+ setups
-SMART_TRAILING_BREAKEVEN = 1000.0 # Breakeven at +Rs. 1000
-SMART_TRAILING_RUNNER = 2500.0 # Trail 70% above +Rs. 2500 # Max 20% of portfolio in a single stock (Rs. 1,00,000 max)
-MAX_OPEN_POSITIONS = 3      # Up to 4 active concurrent positions
-CASH_RESERVE_MIN = 60000.0 # Maintain Rs. 1.0L buffer to deploy Rs. 3.25L active capital
+# Portfolio & Capital Settings (Madhav's 1% Monthly Growth Model)
+INITIAL_CAPITAL = 500000.0          # Rs. 5,00,000 Invested Capital
+MONTHLY_TARGET_PCT = 1.0            # Minimum Target: 1% per month
+BASE_MONTHLY_TARGET_INR = 5000.0    # Rs. 5,000 per month
+ANNUAL_TARGET_INR = 60000.0         # Rs. 60,000 per year (12% CAGR)
+CARRY_FORWARD_TARGET_ENABLED = True # Carry-forward monthly shortfall logic
+
+# Risk Management & Capital Protection
+RISK_PER_TRADE_PCT = 0.5            # Conservative 0.5% max risk per trade (Rs. 2,500)
+MAX_RISK_AMOUNT_INR = 2500.0        # Hard absolute risk cap per trade: Rs. 2,500
+MAX_MONTHLY_DRAWDOWN_INR = 7500.0   # Strict 1.5% max monthly loss limit (Kill-switch)
+MAX_DAILY_LOSS_INR = 1500.0         # Strict Daily Loss Cap (0.3% of capital)
+MAX_CAPITAL_PER_TRADE_PCT = 25.0    # Max 25% of capital in a single stock (Rs. 1,25,000)
+APLUS_SETUP_ALLOCATION_MAX = 150000.0 # Max Rs. 1.5L allocation on A+ setups
+SMART_TRAILING_BREAKEVEN = 1000.0   # Move SL to Cost (+0.2%) at +Rs. 1,000 profit (Eliminates risk)
+SMART_TRAILING_RUNNER = 2500.0      # Lock 70% of profit once gain reaches +Rs. 2,500
+MAX_OPEN_POSITIONS = 3              # Max 3 active concurrent swing positions
+CASH_RESERVE_MIN = 75000.0          # Maintain Rs. 75,000 liquid cash buffer
 INTRADAY_TRADING_ENABLED = True # Strictly disabled: Only trade high-probability institutional swings (No noisy 5-min scalps)
 MAX_INTRADAY_POSITIONS = 3  # Up to 3 active intraday positions
 MAX_INTRADAY_TRADES_PER_DAY = 3 # Up to 6 high-conviction trades per day (Anti-block pacing)
