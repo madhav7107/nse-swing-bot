@@ -303,7 +303,17 @@ def api_stats():
     stats["mode"] = config.TRADING_MODE
     stats["last_scan"] = LAST_AUTO_SCAN
     stats["auto_pilot"] = AUTO_PILOT_ACTIVE
+    try:
+        from monthly_target_manager import calculate_monthly_performance
+        stats["monthly_target"] = calculate_monthly_performance()
+    except Exception as e:
+        stats["monthly_target"] = {"error": str(e)}
     return stats
+
+@app.get("/api/monthly_target")
+def api_monthly_target():
+    from monthly_target_manager import calculate_monthly_performance
+    return calculate_monthly_performance()
 
 @app.get("/api/indices")
 def api_indices():
