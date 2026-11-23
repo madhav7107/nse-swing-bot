@@ -1,6 +1,7 @@
 from typing import Tuple, Dict, Any
 import config
 from trade_logger import get_account_balance, get_open_trades
+from monthly_target_manager import get_risk_multiplier, calculate_monthly_performance
 
 def validate_setup_institutional_gate(setup: Dict[str, Any]) -> Tuple[bool, str, Dict[str, Any]]:
     """
@@ -64,7 +65,12 @@ def calculate_position_size(entry_price: float, stop_loss: float, trade_type: st
     4. Supports both BUY and SHORT SELL
     5. Separate tracking for Intraday (Max 3) and Swing (Max 3)
     """
-    # Guard 0: Daily Max Loss Limit Check (Stops profit leak on chop days)
+    # Guard 0: Monthly Drawdown & Capital Preservation Check
+    risk_mult, risk_reason = get_risk_multiplier()
+    if risk_mult <= 0.0:
+        return False, 0, risk_reason
+
+    # Guard 0B: Daily Max Loss Limit Check (Stops profit leak on chop days)
     today_str = config.get_ist_now().strftime("%Y-%m-%d")
     from trade_logger import get_closed_trades
     closed_today = [t for t in get_closed_trades(limit=50) if today_str in str(t.get("exit_date", ""))]
@@ -101,18 +107,19 @@ def calculate_position_size(entry_price: float, stop_loss: float, trade_type: st
     if risk_per_share <= 0:
         return False, 0, "Invalid stop loss level (cannot equal entry price)"
     
-    # High-Conviction A+ Setup Tier: allocate up to Rs. 2.0L and Rs. 6k risk cap
+    # High-Conviction A+ Setup Tier: allocate up to Rs. 1.5L and Rs. 2,500 risk cap
     is_a_plus = float(confluence_score) >= 80.0
     if is_a_plus:
-        max_risk_cap = getattr(config, "MAX_RISK_AMOUNT_INR", 6000.0)
-        max_alloc_cap = getattr(config, "APLUS_SETUP_ALLOCATION_MAX", 200000.0)
-        tier_label = "A+ Institutional Setup (Rs. 2.0L Cap)"
+        max_risk_cap = getattr(config, "MAX_RISK_AMOUNT_INR", 2500.0)
+        max_alloc_cap = getattr(config, "APLUS_SETUP_ALLOCATION_MAX", 150000.0)
+        tier_label = "A+ Institutional Setup (Rs. 1.5L Cap)"
     else:
-        max_risk_cap = 4000.0
+        max_risk_cap = getattr(config, "MAX_RISK_AMOUNT_INR", 2500.0) * 0.75
         max_alloc_cap = 100000.0
         tier_label = "Standard Setup (Rs. 1.0L Cap)"
         
-    max_risk_amount = min(max_risk_cap, current_cash * (config.RISK_PER_TRADE_PCT / 100.0))
+    # Base risk amount scaled by monthly target multiplier
+    max_risk_amount = min(max_risk_cap, current_cash * (config.RISK_PER_TRADE_PCT / 100.0)) * risk_mult
     qty_by_risk = int(max_risk_amount / risk_per_share)
     
     # Shares based on capital allocation
