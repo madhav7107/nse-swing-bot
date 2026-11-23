@@ -136,7 +136,7 @@ BACKUP_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trades_b
 NTFY_TOPIC = os.getenv("NTFY_TOPIC", "sr_trading_madhav")
 
 # MegaBull Paper Trading API Integration
-MEGABULL_API_KEY = os.getenv("MEGABULL_API_KEY", "e78cdac4-1c8d-4fcb-89ca-5b00e7a1acf0")
+MEGABULL_API_KEY = os.getenv("MEGABULL_API_KEY", "10636544-03d5-41aa-8407-ce421a9f57a4")
 MEGABULL_ENABLED = os.getenv("MEGABULL_ENABLED", "True").lower() in ("true", "1", "yes")
 
 # Angel One SmartAPI Credentials (For Live Trading after 2 months paper trading)
