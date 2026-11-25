@@ -19,8 +19,8 @@ RISK_PER_TRADE_PCT = 0.5            # Conservative 0.5% max risk per trade (Rs. 
 MAX_RISK_AMOUNT_INR = 2500.0        # Hard absolute risk cap per trade: Rs. 2,500
 MAX_MONTHLY_DRAWDOWN_INR = 7500.0   # Strict 1.5% max monthly loss limit (Kill-switch)
 MAX_DAILY_LOSS_INR = 1500.0         # Strict Daily Loss Cap (0.3% of capital)
-MAX_CAPITAL_PER_TRADE_PCT = 25.0    # Max 25% of capital in a single stock (Rs. 1,25,000)
-APLUS_SETUP_ALLOCATION_MAX = 150000.0 # Max Rs. 1.5L allocation on A+ setups
+MAX_CAPITAL_PER_TRADE_PCT = 35.0    # Allocate up to 35% on high-conviction momentum (Rs. 1,60,000)
+APLUS_SETUP_ALLOCATION_MAX = 160000.0 # Max Rs. 1.6L allocation on A+ setups
 SMART_TRAILING_BREAKEVEN = 1000.0   # Move SL to Cost (+0.2%) at +Rs. 1,000 profit (Eliminates risk)
 SMART_TRAILING_RUNNER = 2500.0      # Lock 70% of profit once gain reaches +Rs. 2,500
 MAX_OPEN_POSITIONS = 3              # Max 3 active concurrent swing positions
@@ -42,7 +42,7 @@ ZONE_LOOKBACK_BARS = 50     # Swing low lookback for horizontal support zone det
 
 # Risk & Reward
 TARGET_RR_RATIO = 2.0       # Strict 1:2 Risk to Reward (Risk Rs. 3,500 to make Rs. 7,000)
-DAILY_PROFIT_GOAL = 5000.0
+DAILY_PROFIT_GOAL = 20000.0         # Aggressive Stretch Goal: Aim for maximum daily upside
 MIN_PROFIT_TARGET_INR = 3000.0 # Strict Minimum Profit Target per Trade
 MAX_DAILY_LOSS_INR = 1500.0 # Strict Daily Loss Cap to prevent profit leak  # Madhav's Target: Minimum Rs. 2,000 Net Profit per day
 TARGET_DEADLINE = "2026-12-09" # User Final Deadline: 23 November 2026
