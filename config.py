@@ -25,11 +25,21 @@ SMART_TRAILING_BREAKEVEN = 1000.0   # Move SL to Cost (+0.2%) at +Rs. 1,000 prof
 SMART_TRAILING_RUNNER = 2500.0      # Lock 70% of profit once gain reaches +Rs. 2,500
 MAX_OPEN_POSITIONS = 3              # Max 3 active concurrent swing positions
 CASH_RESERVE_MIN = 75000.0          # Maintain Rs. 75,000 liquid cash buffer
-INTRADAY_TRADING_ENABLED = True # Strictly disabled: Only trade high-probability institutional swings (No noisy 5-min scalps)
-MAX_INTRADAY_POSITIONS = 3  # Up to 3 active intraday positions
-MAX_INTRADAY_TRADES_PER_DAY = 3 # Up to 6 high-conviction trades per day (Anti-block pacing)
-API_COOLDOWN_SECONDS = 3.0  # 3-second delay to guarantee zero account block risk
-INTRADAY_SQUARE_OFF_TIME = "15:15" # Mandatory exit by 03:15 PM IST (Never carry overnight shorts)
+
+# Strict Intraday Execution & Time Rules
+INTRADAY_TRADING_ENABLED = True
+INTRADAY_START_TIME = "09:30"           # Block all new entries between 09:15 AM - 09:30 AM
+INTRADAY_LAST_ENTRY_TIME = "14:45"      # Block all new entries after 02:45 PM
+INTRADAY_SQUARE_OFF_TIME = "15:15"      # Mandatory auto square-off at 03:15 PM IST
+MAX_INTRADAY_POSITIONS = 2              # Up to 2 active positions
+MAX_INTRADAY_TRADES_PER_DAY = 2         # Strict Max 2 trades per day
+HALT_ON_FIRST_LOSS = True               # Halt trading for the rest of the day if first trade hits SL
+INTRADAY_SL_PCT = 0.75                  # Strict 0.75% Stop Loss
+INTRADAY_TARGET_PCT = 1.50              # Strict 1.50% Target (1:2 Risk to Reward)
+LIMIT_ORDER_BUFFER_PCT = 0.05           # 0.05% Limit order buffer to eliminate slippage
+MAX_SPIKE_SLIPPAGE_PCT = 0.30           # Block market orders if price spikes > 0.30%
+ESTIMATED_CHARGES_PER_TRADE = 40.0      # Deduct Rs. 40 Indian intraday charges for true Net P&L
+API_COOLDOWN_SECONDS = 3.0              # Prevent rapid-fire duplicate calls
 
 # Zone Bounce Strategy Parameters
 TREND_EMA_LONG = 200        # Macro Trend filter: Price > 200 EMA
