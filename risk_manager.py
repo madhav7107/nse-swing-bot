@@ -65,7 +65,16 @@ def calculate_position_size(entry_price: float, stop_loss: float, trade_type: st
     4. Supports both BUY and SHORT SELL
     5. Separate tracking for Intraday (Max 3) and Swing (Max 3)
     """
-    # Guard 0: Monthly Drawdown & Capital Preservation Check
+    # Guard 0: Daily Profit Target & Trailing Lock Shutdown Check
+    try:
+        from daily_profit_locker import check_daily_profit_locking_status
+        d_status, d_reason, _ = check_daily_profit_locking_status()
+        if d_status == "SHUTDOWN":
+            return False, 0, f"BLOCK [{d_reason}]"
+    except Exception as e:
+        pass
+
+    # Guard 0A: Monthly Drawdown & Capital Preservation Check
     risk_mult, risk_reason = get_risk_multiplier()
     if risk_mult <= 0.0:
         return False, 0, risk_reason
@@ -75,7 +84,7 @@ def calculate_position_size(entry_price: float, stop_loss: float, trade_type: st
     from trade_logger import get_closed_trades
     closed_today = [t for t in get_closed_trades(limit=50) if today_str in str(t.get("exit_date", ""))]
     today_realized_loss = sum(float(t.get("pnl") or 0) for t in closed_today if float(t.get("pnl") or 0) < 0)
-    max_daily_loss = getattr(config, "MAX_DAILY_LOSS_INR", 1500.0)
+    max_daily_loss = getattr(config, "MAX_DAILY_LOSS_INR", 2000.0)
     if abs(today_realized_loss) >= max_daily_loss:
         return False, 0, f"BLOCK: Daily Max Loss Limit reached (Rs. {abs(today_realized_loss):.2f} / Rs. {max_daily_loss:.2f}). Trading paused to protect capital."
 
