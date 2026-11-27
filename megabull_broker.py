@@ -71,27 +71,60 @@ def get_account_profile() -> dict:
         print(f"[MegaBull] get_account_profile error: {e}")
         return {}
 
-def place_order(symbol: str, qty: int, order_type: str, price: float) -> dict:
+# In-memory lock to prevent duplicate orders if API response is delayed
+_RECENT_ORDERS = {}
+
+def place_order(symbol: str, qty: int, order_type: str, price: float, current_ltp: float = None) -> dict:
     """
+    Places a Limit order on MegaBull with anti-slippage buffer (0.05%),
+    spike detection check, and duplicate order prevention.
     order_type: 'BUY' or 'SELL'
     """
+    import time
     clean_sym = symbol.replace(".NS", "").replace(".BO", "").strip()
+    now_ts = time.time()
+    
+    # 1. Prevent duplicate orders if API response is delayed or retried rapidly (30s lock)
+    last_order = _RECENT_ORDERS.get(clean_sym)
+    if last_order and (now_ts - last_order.get("time", 0)) < 30.0:
+        msg = f"[MegaBull Anti-Duplicate] Order for {clean_sym} already placed {round(now_ts - last_order['time'], 1)}s ago. Preventing duplicate entry."
+        print(msg)
+        return {"error": "DUPLICATE_PREVENTED", "message": msg}
+
     token = get_instrument_token(clean_sym)
     if not token:
         print(f"[MegaBull] Instrument token not found for {clean_sym}")
         return {"error": f"Token not found for {clean_sym}"}
 
+    # 2. Check for sudden price spike (Avoid buying at erratic spikes > 0.30%)
+    if current_ltp and price > 0:
+        spike_pct = abs(current_ltp - price) / price * 100.0
+        max_spike = getattr(config, "MAX_SPIKE_SLIPPAGE_PCT", 0.30)
+        if spike_pct > max_spike:
+            msg = f"[MegaBull Spike Alert] Price spiked {spike_pct:.2f}% (Threshold: {max_spike}%). Blocking order to avoid bad slippage."
+            print(msg)
+            return {"error": "SPIKE_BLOCKED", "message": msg}
+
+    # 3. Limit Order calculation with 0.05% buffer (instead of blind market order)
+    buffer_pct = getattr(config, "LIMIT_ORDER_BUFFER_PCT", 0.05) / 100.0
+    if order_type.upper() == "BUY":
+        limit_price = round(price * (1.0 + buffer_pct), 2)
+    else:
+        limit_price = round(price * (1.0 - buffer_pct), 2)
+
+    # Register in-flight order before API call
+    _RECENT_ORDERS[clean_sym] = {"time": now_ts, "type": order_type.upper(), "qty": qty}
+
     payload = {
         "type": order_type.upper(),
         "duration": "CNC",
-        "orderType": "MKT",
+        "orderType": "LMT",
         "qty": int(qty),
-        "price": float(price),
+        "price": float(limit_price),
         "instrumentToken": str(token)
     }
 
     url = f"{MEGABULL_API_BASE}/api/order/buysell"
-    import time
     time.sleep(getattr(config, "API_COOLDOWN_SECONDS", 2.0))
     req = urllib.request.Request(
         url,
@@ -102,7 +135,7 @@ def place_order(symbol: str, qty: int, order_type: str, price: float) -> dict:
     try:
         with urllib.request.urlopen(req, timeout=10) as res:
             data = json.loads(res.read().decode())
-            print(f"[MegaBull] {order_type} order placed for {clean_sym} (Qty: {qty}): Order ID {data.get('id')}")
+            print(f"[MegaBull] {order_type} LIMIT order placed for {clean_sym} (Qty: {qty} @ Rs. {limit_price}): Order ID {data.get('id')}")
             return data
     except urllib.error.HTTPError as e:
         err_msg = e.read().decode()
