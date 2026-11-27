@@ -79,18 +79,35 @@ def calculate_position_size(entry_price: float, stop_loss: float, trade_type: st
     if abs(today_realized_loss) >= max_daily_loss:
         return False, 0, f"BLOCK: Daily Max Loss Limit reached (Rs. {abs(today_realized_loss):.2f} / Rs. {max_daily_loss:.2f}). Trading paused to protect capital."
 
+    # Guard 0C: Strict Intraday Time Filter (09:30 AM to 02:45 PM IST)
+    now_ist = config.get_ist_now()
+    time_str = now_ist.strftime("%H:%M")
+    start_time = getattr(config, "INTRADAY_START_TIME", "09:30")
+    last_entry_time = getattr(config, "INTRADAY_LAST_ENTRY_TIME", "14:45")
+    if trade_type == "INTRADAY" and (time_str < start_time or time_str > last_entry_time):
+        return False, 0, f"BLOCK: Intraday entries allowed only between {start_time} and {last_entry_time} IST (Current: {time_str})."
+
+    # Guard 0D: First Trade Stop-Loss Halt Rule
+    if getattr(config, "HALT_ON_FIRST_LOSS", True) and trade_type == "INTRADAY":
+        today_losses = [t for t in closed_today if float(t.get("pnl") or 0) < 0]
+        if len(today_losses) > 0:
+            first_loss = today_losses[0].get("pnl")
+            return False, 0, f"BLOCK [First-Loss Halt]: Today's first trade hit Stop-Loss (Rs. {first_loss}). Trading halted for the rest of the day to protect capital."
+
     open_trades = get_open_trades()
     if trade_type == "INTRADAY":
         intraday_open = [t for t in open_trades if t.get("strategy") == "INTRADAY" or "INTRADAY" in str(t.get("notes", ""))]
-        if len(intraday_open) >= getattr(config, "MAX_INTRADAY_POSITIONS", 3):
-            return False, 0, f"Max intraday positions reached ({len(intraday_open)}/{getattr(config, 'MAX_INTRADAY_POSITIONS', 3)})"
+        max_positions = getattr(config, "MAX_INTRADAY_POSITIONS", 2)
+        if len(intraday_open) >= max_positions:
+            return False, 0, f"Max intraday positions reached ({len(intraday_open)}/{max_positions})"
             
         from trade_logger import get_closed_trades
         today_str = config.get_ist_now().strftime("%Y-%m-%d")
         closed = get_closed_trades(limit=50)
         today_closed = [t for t in closed if (t.get("strategy") == "INTRADAY" or "INTRADAY" in str(t.get("notes", ""))) and today_str in str(t.get("exit_date", ""))]
-        if len(today_closed) >= getattr(config, "MAX_INTRADAY_TRADES_PER_DAY", 6):
-            return False, 0, f"Daily intraday trade limit reached ({len(today_closed)}/{getattr(config, 'MAX_INTRADAY_TRADES_PER_DAY', 6)}) on {today_str}."
+        max_trades = getattr(config, "MAX_INTRADAY_TRADES_PER_DAY", 2)
+        if len(today_closed) >= max_trades:
+            return False, 0, f"Daily intraday trade limit reached ({len(today_closed)}/{max_trades}) on {today_str}."
     else:
         swing_open = [t for t in open_trades if t.get("strategy") != "INTRADAY" and "INTRADAY" not in str(t.get("notes", ""))]
         if len(swing_open) >= config.MAX_OPEN_POSITIONS:
