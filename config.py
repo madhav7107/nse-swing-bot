@@ -44,6 +44,17 @@ MAX_SPIKE_SLIPPAGE_PCT = 0.30           # Block market orders if price spikes > 
 ESTIMATED_CHARGES_PER_TRADE = 40.0      # Deduct Rs. 40 Indian intraday charges for true Net P&L
 API_COOLDOWN_SECONDS = 3.0              # Prevent rapid-fire duplicate calls
 
+# Bi-Directional & Dynamic Scanner Parameters
+ADX_MIN_THRESHOLD = 22.0                # Sideways/Choppy Market Filter: Skip if ADX(14) < 22
+SCANNER_MIN_AVG_VOLUME = 1000000        # Minimum 10 Lakhs average daily volume
+SCANNER_MIN_PRICE = 100.0               # Minimum stock price Rs. 100
+SCANNER_MAX_PRICE = 5000.0              # Maximum stock price Rs. 5,000
+SCANNER_MIN_RVOL = 2.0                  # Relative Volume > 2.0x
+MAX_BID_ASK_SPREAD_PCT = 0.05           # Liquidity filter: Skip if spread > 0.05%
+CIRCUIT_LIMIT_BUFFER_PCT = 8.5          # Skip if stock is near Upper/Lower circuit trap
+TOP_GAINERS_COUNT = 5                   # Top 5 Gainers for Long setups
+TOP_LOSERS_COUNT = 5                    # Top 5 Losers for Short-Sell setups
+
 # Zone Bounce Strategy Parameters
 TREND_EMA_LONG = 200        # Macro Trend filter: Price > 200 EMA
 TREND_EMA_MID = 50          # Secondary trend filter: Price > 50 EMA
