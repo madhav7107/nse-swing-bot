@@ -140,8 +140,11 @@ def perform_full_scan():
             # If no swing setup, check for intraday VWAP momentum if enabled during trading hours
             if not setup and getattr(config, "INTRADAY_TRADING_ENABLED", True):
                 now_ist = config.get_ist_now()
-                # Check extended intraday window: 09:20 AM to 02:45 PM
-                if (now_ist.hour == 9 and now_ist.minute >= 20) or (10 <= now_ist.hour <= 14 and now_ist.minute <= 45):
+                time_str = now_ist.strftime("%H:%M")
+                start_t = getattr(config, "INTRADAY_START_TIME", "09:30")
+                end_t = getattr(config, "INTRADAY_LAST_ENTRY_TIME", "14:45")
+                # Strict Intraday Window: 09:30 AM to 02:45 PM IST
+                if start_t <= time_str <= end_t:
                     try:
                         df_5m = get_stock_data(symbol, period="1d", interval="5m")
                         if df_5m is not None:
@@ -494,13 +497,19 @@ def api_export_trades():
     writer.writerow([
         "Trade ID", "Symbol", "Direction", "Entry Date", "Entry Price",
         "Quantity", "Stop Loss", "Target Price", "Status", "Exit Date",
-        "Exit Price", "P&L", "P&L %", "Exit Reason", "Notes"
+        "Exit Price", "Gross P&L", "Intraday Charges", "Net P&L", "Net P&L %", "Exit Reason", "Notes"
     ])
+    charges = getattr(config, "ESTIMATED_CHARGES_PER_TRADE", 40.0)
     for r in rows:
+        pnl = r["pnl"]
+        gross_pnl = (float(pnl) + charges) if pnl is not None else ""
         writer.writerow([
             r["id"], r["symbol"], r["direction"], r["entry_date"], r["entry_price"],
             r["quantity"], r["stop_loss"], r["target_price"], r["status"],
-            r["exit_date"] or "", r["exit_price"] or "", r["pnl"] or "",
+            r["exit_date"] or "", r["exit_price"] or "",
+            round(gross_pnl, 2) if gross_pnl != "" else "",
+            f"Rs. {charges:.2f}" if pnl is not None else "",
+            r["pnl"] if r["pnl"] is not None else "",
             r["pnl_pct"] or "", r["exit_reason"] or "", r["notes"] or ""
         ])
     
