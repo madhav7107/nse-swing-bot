@@ -269,6 +269,12 @@ def monitor_and_manage_positions():
                 exit_side = "BUY" if direction == "SELL" else "SELL"
                 pnl = (entry_price - exit_price) * qty if direction == "SELL" else (exit_price - entry_price) * qty
                 log_trade_exit(trade_id, exit_price, "Intraday EOD 03:15 PM Auto Square-Off")
+                if getattr(config, "MEGABULL_ENABLED", False):
+                    try:
+                        from megabull_broker import place_order as mb_place_order
+                        mb_place_order(symbol, qty, exit_side, exit_price, current_ltp=current_price)
+                    except Exception as mb_err:
+                        print(f"[MegaBull 03:15 PM Square-Off Exit Error] {mb_err}")
                 notify_target_hit(trade, exit_price, pnl)
                 print(f"[INTRADAY EOD EXIT] {symbol} {exit_side} at Rs. {exit_price} (PnL: Rs. {round(pnl, 2)})")
                 continue
