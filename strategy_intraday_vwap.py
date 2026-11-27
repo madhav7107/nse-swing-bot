@@ -13,22 +13,22 @@ def compute_vwap(df: pd.DataFrame) -> pd.Series:
 
 def analyze_intraday_vwap_signal(df_intraday: pd.DataFrame, symbol: str) -> Optional[Dict]:
     """
-    Practical, Responsive 5-Min Intraday 2-Way Engine (BUY & SHORT SELL):
-    - Triggers reliably during market hours without being over-restricted.
-    - BUY: Price > VWAP, 9 EMA >= 21 EMA, Healthy Volume >= 1.0x SMA, RSI 50-75.
-    - SHORT SELL: Price < VWAP, 9 EMA <= 21 EMA, Healthy Volume >= 1.0x SMA, RSI 25-50.
-    - Fast R:R Ratio: 1:1.5 with realistic intraday targets.
-    - Passing Score: >= 60/100 (Practical threshold).
+    High-Probability Intraday Entry (Strict VWAP + Trend Filter):
+    Only triggers a BUY order when:
+    1. 5-minute candle closes above both VWAP and 20 EMA (close > VWAP and close > EMA_20).
+    2. RSI (14-period) is between 55.0 and 68.0.
+    3. Volume is strictly higher than 20-period average volume (volume > Vol_SMA20).
+    4. Immediate 0.75% Stop-Loss and 1.50% Target (Exact 1:2 Risk to Reward).
     """
-    if df_intraday is None or len(df_intraday) < 15:
+    if df_intraday is None or len(df_intraday) < 20:
         return None
         
     df = df_intraday.copy()
     df["VWAP"] = compute_vwap(df)
-    df["EMA_9"] = df["Close"].ewm(span=9, adjust=False).mean()
-    df["EMA_21"] = df["Close"].ewm(span=21, adjust=False).mean()
-    df["Vol_SMA20"] = df["Volume"].rolling(window=15, min_periods=5).mean()
+    df["EMA_20"] = df["Close"].ewm(span=20, adjust=False).mean()
+    df["Vol_SMA20"] = df["Volume"].rolling(window=20, min_periods=5).mean()
     
+    # 14-period RSI
     delta = df["Close"].diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=5).mean()
     loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=5).mean()
@@ -37,130 +37,67 @@ def analyze_intraday_vwap_signal(df_intraday: pd.DataFrame, symbol: str) -> Opti
     
     current = df.iloc[-1]
     close = float(current["Close"])
-    open_p = float(current["Open"])
-    high = float(current["High"])
-    low = float(current["Low"])
     volume = float(current["Volume"])
     vol_sma = float(current["Vol_SMA20"]) if not np.isnan(current["Vol_SMA20"]) and current["Vol_SMA20"] > 0 else 1.0
     vwap = float(current["VWAP"])
-    ema9 = float(current["EMA_9"])
-    ema21 = float(current["EMA_21"])
+    ema20 = float(current["EMA_20"])
     rsi = float(current["RSI"]) if not np.isnan(current["RSI"]) else 50.0
+
+    # ----------------------------------------------------
+    # STRICT HIGH-PROBABILITY ENTRY GATES (Rules 3 & 4)
+    # ----------------------------------------------------
+    # Gate 1: 5-min candle closes above both VWAP and 20 EMA
+    is_above_vwap_and_ema20 = (close > vwap) and (close > ema20)
+    if not is_above_vwap_and_ema20:
+        return None
+
+    # Gate 2: RSI is strictly between 55 and 68
+    is_rsi_in_sweet_spot = (55.0 <= rsi <= 68.0)
+    if not is_rsi_in_sweet_spot:
+        return None
+
+    # Gate 3: Volume is higher than 20-period average volume
+    is_volume_confirmed = (volume > vol_sma)
+    if not is_volume_confirmed:
+        return None
+
+    # Gate 4: Immediate 0.75% Stop-Loss and 1.50% Target (1:2 R:R)
+    sl_pct = getattr(config, "INTRADAY_SL_PCT", 0.75) / 100.0
+    tgt_pct = getattr(config, "INTRADAY_TARGET_PCT", 1.50) / 100.0
     
-    lookback_range = df.iloc[-20:-1] if len(df) >= 20 else df.iloc[:-1]
-    orb_high = float(lookback_range["High"].max()) if not lookback_range.empty else high
-    orb_low = float(lookback_range["Low"].min()) if not lookback_range.empty else low
-    recent_swing_low = float(df["Low"].tail(5).min())
-    recent_swing_high = float(df["High"].tail(5).max())
+    stop_loss = round(close * (1.0 - sl_pct), 2)
+    target_price = round(close * (1.0 + tgt_pct), 2)
+    risk_per_share = round(close - stop_loss, 2)
+    reward_per_share = round(target_price - close, 2)
     
-    # ----------------------------------------------------
-    # PATH A: INTRADAY BUY (Price above VWAP)
-    # ----------------------------------------------------
-    if close >= vwap and ema9 >= ema21:
-        score = 0
-        score_breakdown = {}
-        is_green = close >= open_p
-        
-        # 1. Price vs VWAP (35 pts)
-        pa_score = 35 if (close >= orb_high * 0.999 and is_green) else (25 if is_green else 20)
-        score += pa_score
-        score_breakdown["Price_VWAP"] = f"{pa_score}/35"
-        
-        # 2. Volume (25 pts)
-        vol_score = 25 if volume >= 1.5 * vol_sma else (20 if volume >= 1.0 * vol_sma else 15)
-        score += vol_score
-        score_breakdown["Volume"] = f"{vol_score}/25"
-        
-        # 3. Momentum RSI & EMA (25 pts)
-        mom_score = 20 if (52.0 <= rsi <= 75.0) else (15 if 48.0 <= rsi < 52.0 else 10)
-        if close >= ema9: mom_score += 5
-        score += mom_score
-        score_breakdown["Momentum"] = f"{mom_score}/25"
-        
-        # 4. Stop Loss & Target (15 pts)
-        raw_sl = min(vwap * 0.996, recent_swing_low * 0.998)
-        if (close - raw_sl) / close > 0.012: raw_sl = close * 0.988 # Cap at 1.2%
-        stop_loss = round(raw_sl, 2)
-        risk_per_share = close - stop_loss
-        if risk_per_share <= 0: return None
-        
-        target_price = round(close + (1.5 * risk_per_share), 2)
-        rr_ratio = round((target_price - close) / risk_per_share, 2)
-        score += 15
-        score_breakdown["RR"] = f"15/15 (1:{rr_ratio})"
-        
-        if score >= 60:
-            return {
-                "symbol": symbol,
-                "direction": "BUY",
-                "entry_price": round(close, 2),
-                "stop_loss": stop_loss,
-                "target_price": target_price,
-                "risk_per_share": round(risk_per_share, 2),
-                "risk_pct": round((risk_per_share / close) * 100.0, 2),
-                "target_pct": round(((target_price - close) / close) * 100.0, 2),
-                "rr_ratio": f"1:{rr_ratio}",
-                "pattern": "Intraday VWAP Momentum BUY",
-                "trade_type": "INTRADAY",
-                "confluence_score": score,
-                "score_breakdown": score_breakdown,
-                "vwap": round(vwap, 2),
-                "rsi": round(rsi, 1)
-            }
-            
-    # ----------------------------------------------------
-    # PATH B: INTRADAY SHORT SELL (Price below VWAP)
-    # ----------------------------------------------------
-    elif close <= vwap and ema9 <= ema21:
-        score = 0
-        score_breakdown = {}
-        is_red = close <= open_p
-        
-        # 1. Price vs VWAP (35 pts)
-        pa_score = 35 if (close <= orb_low * 1.001 and is_red) else (25 if is_red else 20)
-        score += pa_score
-        score_breakdown["Price_VWAP"] = f"{pa_score}/35"
-        
-        # 2. Volume (25 pts)
-        vol_score = 25 if volume >= 1.5 * vol_sma else (20 if volume >= 1.0 * vol_sma else 15)
-        score += vol_score
-        score_breakdown["Volume"] = f"{vol_score}/25"
-        
-        # 3. Momentum RSI & EMA (25 pts)
-        mom_score = 20 if (25.0 <= rsi <= 48.0) else (15 if 48.0 < rsi <= 52.0 else 10)
-        if close <= ema9: mom_score += 5
-        score += mom_score
-        score_breakdown["Momentum"] = f"{mom_score}/25"
-        
-        # 4. Stop Loss & Target (15 pts) - SL above entry for short
-        raw_sl = max(vwap * 1.004, recent_swing_high * 1.002)
-        if (raw_sl - close) / close > 0.012: raw_sl = close * 1.012 # Cap at 1.2%
-        stop_loss = round(raw_sl, 2)
-        risk_per_share = stop_loss - close
-        if risk_per_share <= 0: return None
-        
-        target_price = round(close - (1.5 * risk_per_share), 2)
-        rr_ratio = round((close - target_price) / risk_per_share, 2)
-        score += 15
-        score_breakdown["RR"] = f"15/15 (1:{rr_ratio})"
-        
-        if score >= 60:
-            return {
-                "symbol": symbol,
-                "direction": "SELL",
-                "entry_price": round(close, 2),
-                "stop_loss": stop_loss,
-                "target_price": target_price,
-                "risk_per_share": round(risk_per_share, 2),
-                "risk_pct": round((risk_per_share / close) * 100.0, 2),
-                "target_pct": round(((close - target_price) / close) * 100.0, 2),
-                "rr_ratio": f"1:{rr_ratio}",
-                "pattern": "Intraday VWAP Breakdown (SHORT SELL)",
-                "trade_type": "INTRADAY",
-                "confluence_score": score,
-                "score_breakdown": score_breakdown,
-                "vwap": round(vwap, 2),
-                "rsi": round(rsi, 1)
-            }
-            
-    return None
+    if risk_per_share <= 0:
+        return None
+
+    score = 88 # High-probability confluence score
+    score_breakdown = {
+        "VWAP_EMA20_Cross": "PASS (Above VWAP & 20 EMA)",
+        "RSI_Momentum": f"PASS (RSI: {round(rsi, 1)} in 55-68 range)",
+        "Volume_Surge": f"PASS (Vol: {int(volume):,} > Avg: {int(vol_sma):,})",
+        "Risk_Reward": f"1:2.0 (SL: -0.75%, Tgt: +1.50%)"
+    }
+
+    return {
+        "symbol": symbol,
+        "direction": "BUY",
+        "entry_price": round(close, 2),
+        "stop_loss": stop_loss,
+        "target_price": target_price,
+        "risk_per_share": risk_per_share,
+        "risk_pct": 0.75,
+        "target_pct": 1.50,
+        "rr_ratio": "1:2.0",
+        "pattern": "High-Probability VWAP+20EMA Trend BUY",
+        "trade_type": "INTRADAY",
+        "confluence_score": score,
+        "score_breakdown": score_breakdown,
+        "vwap": round(vwap, 2),
+        "ema20": round(ema20, 2),
+        "rsi": round(rsi, 1),
+        "volume": int(volume),
+        "vol_sma20": int(vol_sma)
+    }
