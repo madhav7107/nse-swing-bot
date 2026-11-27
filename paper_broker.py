@@ -106,6 +106,30 @@ def monitor_and_manage_positions():
             sync_megabull_to_db()
         except Exception as sync_err:
             print(f"[MegaBull Pre-Monitor Sync Error] {sync_err}")
+
+    # Daily Profit Target Stop & Trailing Lock & Max Daily Loss Cap
+    try:
+        from daily_profit_locker import check_daily_profit_locking_status
+        lock_status, lock_reason, lock_state = check_daily_profit_locking_status()
+        if lock_status == "SHUTDOWN" and open_trades:
+            print(f"[Daily Profit Locker Square-Off] {lock_reason} -> Auto closing all {len(open_trades)} positions!")
+            for t_item in open_trades:
+                t_id = t_item["id"]
+                t_sym = t_item["symbol"]
+                t_qty = t_item["quantity"]
+                t_dir = t_item.get("direction", "BUY")
+                cur_p = get_latest_price(t_sym) or float(t_item["entry_price"])
+                side = "BUY" if t_dir == "SELL" else "SELL"
+                log_trade_exit(t_id, cur_p, f"Daily Profit Locker Auto-Exit: {lock_reason}")
+                if getattr(config, "MEGABULL_ENABLED", False):
+                    try:
+                        from megabull_broker import place_order as mb_place_order
+                        mb_place_order(t_sym, t_qty, side, cur_p, current_ltp=cur_p)
+                    except Exception as err:
+                        print(f"[MegaBull Shutdown Order Error] {err}")
+            return
+    except Exception as lock_err:
+        print(f"[Daily Profit Locker Check Warning] {lock_err}")
             
     open_trades = get_open_trades()
     if not open_trades:
