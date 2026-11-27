@@ -96,16 +96,24 @@ def perform_full_scan():
         executed = []
         radar_list = []
         
-        # Scan High-Beta Watchlist + dynamically scan top market breakouts
-        scan_universe = list(config.WATCHLIST)
+        # 2. Run Morning Dynamic Stock Scanner (Top 5 Gainers + Top 5 Losers in NSE F&O)
+        top_10_meta = {}
+        nifty_trend = "NEUTRAL"
         try:
-            from market_scanner import get_top_market_breakouts
-            extra_syms = get_top_market_breakouts(limit=40)
-            for es in extra_syms:
-                if es not in scan_universe:
-                    scan_universe.append(es)
-        except Exception:
-            pass
+            from morning_dynamic_scanner import run_morning_dynamic_scanner
+            scan_res = run_morning_dynamic_scanner()
+            for item in scan_res.get("top_10", []):
+                top_10_meta[item["symbol"]] = item
+            nifty_trend = scan_res.get("nifty_trend", {}).get("trend", "NEUTRAL")
+            add_log(f"Morning Scanner: Nifty Trend={nifty_trend} | Top 10 High-RVOL F&O Picks Loaded ({len(top_10_meta)} stocks)")
+        except Exception as ms_err:
+            print(f"[Morning Dynamic Scanner Error] {ms_err}")
+
+        # Monitor strictly the Top 10 Dynamic Picks first, followed by Watchlist
+        scan_universe = list(top_10_meta.keys())
+        for ws in config.WATCHLIST:
+            if ws not in scan_universe:
+                scan_universe.append(ws)
 
         for symbol in scan_universe:
             df = get_stock_data(symbol, period="1y", interval="1d")
@@ -148,7 +156,12 @@ def perform_full_scan():
                     try:
                         df_5m = get_stock_data(symbol, period="1d", interval="5m")
                         if df_5m is not None:
-                            setup = analyze_intraday_vwap_signal(df_5m, symbol)
+                            setup = analyze_intraday_vwap_signal(
+                                df_5m,
+                                symbol,
+                                nifty_trend=nifty_trend,
+                                scanner_meta=top_10_meta.get(symbol)
+                            )
                     except Exception:
                         pass
             
@@ -317,6 +330,11 @@ def api_stats():
 def api_monthly_target():
     from monthly_target_manager import calculate_monthly_performance
     return calculate_monthly_performance()
+
+@app.get("/api/morning_scanner")
+def api_morning_scanner():
+    from morning_dynamic_scanner import run_morning_dynamic_scanner
+    return run_morning_dynamic_scanner()
 
 @app.get("/api/indices")
 def api_indices():
